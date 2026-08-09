@@ -12,6 +12,4 @@ app.get("/health", (_req: Request, res: Response) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`eng-intel-api listening on port ${PORT}`);
-});
+
