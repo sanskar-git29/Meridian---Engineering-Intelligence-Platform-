@@ -1,24 +1,48 @@
+# ==========================================
 # Dependencies
+# ==========================================
+
 node_modules/
 .pnpm-store/
 .yarn/
 .yarn-cache/
 
-# Build output
-.next/
-out/
+
+# ==========================================
+# Build / Generated Output
+# ==========================================
+
 dist/
 build/
+out/
+.next/
 coverage/
+*.tsbuildinfo
 
-# Environment variables
+# Prisma generated client
+generated/
+
+
+# ==========================================
+# Environment / Secrets
+# ==========================================
+
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 
+# Certificates / private keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+
+# ==========================================
 # Logs
+# ==========================================
+
 *.log
 logs/
 npm-debug.log*
@@ -26,63 +50,89 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+
+# ==========================================
 # Runtime
+# ==========================================
+
 *.pid
 *.seed
 *.pid.lock
 
-# OS files
+
+# ==========================================
+# OS
+# ==========================================
+
 .DS_Store
 Thumbs.db
 
+
+# ==========================================
 # IDE / Editors
+# ==========================================
+
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
 .idea/
 *.swp
 *.swo
 
-# TypeScript
-*.tsbuildinfo
 
+# ==========================================
 # Testing
+# ==========================================
+
 .nyc_output/
 playwright-report/
 test-results/
 
-# Temporary files
+
+# ==========================================
+# Temporary Files
+# ==========================================
+
 .tmp/
 temp/
 tmp/
+.cache/
 
+
+# ==========================================
 # Docker
+# ==========================================
+
 docker-compose.override.yml
 
-# Database
-*.sqlite
-*.sqlite3
 
+# ==========================================
 # Prisma
+# ==========================================
+
+# Local SQLite files only
 prisma/*.db
 prisma/*.db-journal
 
-# Generated files
-generated/
-.cache/
+# DO NOT ignore:
+# prisma/schema.prisma
+# prisma/migrations/
+# prisma.config.ts
 
-# Secrets / certificates
-*.pem
-*.key
-*.crt
-*.p12
-*.pfx
 
+# ==========================================
 # AWS
+# ==========================================
+
 .aws/
 aws-credentials.json
 
+
+# ==========================================
 # Terraform
+# ==========================================
+
 .terraform/
 *.tfstate
 *.tfstate.*
@@ -90,14 +140,20 @@ aws-credentials.json
 *.tfvars.json
 crash.log
 
-# Local uploads
+
+# ==========================================
+# Local Uploads / Storage
+# ==========================================
+
 uploads/
 storage/
 
-# Misc
-.DS_Store
-.env.*
-!.env.example
-/generated/prisma
 
+# ==========================================
+# AI Coding Tools - Local Only
+# ==========================================
 
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
