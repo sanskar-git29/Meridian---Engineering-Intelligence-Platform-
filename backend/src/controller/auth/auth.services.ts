@@ -1,100 +1,117 @@
-import crypto from "crypto";
 import type { Response } from "express";
 
 import {
-	generateAccessToken,
-	generateRefreshToken,
-	verifyRefreshToken,
+  generateAccessToken,
+  generateCsrfToken,
+  generateRefreshToken,
 } from "../../utility/jwt/jwt.js";
 
 import {
-	setAccessTokenCookie,
-	setRefreshTokenCookie,
-	setCsrfCookie,
-	clearAuthCookies,
+  setAccessTokenCookie,
+  setRefreshTokenCookie,
+  setCsrfCookie,
+  clearAuthCookies,
 } from "../../utility/cookies/cookie.services.js";
 
-
-import { AccessTokenPayload, RefreshTokenPayload } from "./auth.type.js";
+import { AuthUser } from "./auth.type.js";
 import { ApiError } from "../../utility/apiError.js";
-import bcrypt from "bcrypt";
-import {prisma} from "../../config/prisma.confi.js";
+
+import { prisma } from "../../config/prisma.confi.js";
+import {
+  hashPassword,
+  hashToken,
+  isPasswordValid,
+} from "../../utility/jwt/token_hash.js";
 import { env } from "../../config/env.js";
-import { StringValue } from "ms";
+import { parseExpirationToMs } from "../../utility/parseExpiration.js";
 
+export async function loginService(
+  res: Response,
+  email: string,
+  password: string,
+) {
+  if (!email || !password) {
+    throw ApiError.badRequest("Email and password required");
+  }
 
-export async function loginService(res: Response, payload: AccessTokenPayload) {
-	if (!payload || !payload.sub) throw ApiError.badRequest("Invalid payload for login");
+  const user = await prisma.user.findUnique({ where: { email } });
 
-	const accessToken = generateAccessToken(payload);
-	const refreshToken = generateRefreshToken({ sub: payload.sub } as RefreshTokenPayload);
+  if (!user) {
+    throw ApiError.unauthorized("Invalid email or password");
+  }
 
-	setAccessTokenCookie(res, accessToken);
-	setRefreshTokenCookie(res, refreshToken);
+  const hashedPassword = user?.passwordHash as string;
 
-	const csrfToken = crypto.randomBytes(16).toString("hex");
-	setCsrfCookie(res, csrfToken);
-	return { csrfToken };
+  if (isPasswordValid(password, hashedPassword) === false) {
+    throw ApiError.unauthorized("Invalid email or password");
+  }
+
+  const userPayload: AuthUser = {
+    sub: user?.id as string,
+    email: user?.email as string,
+  };
+
+  const accessToken: string = generateAccessToken(userPayload);
+  const refreshToken: string = generateRefreshToken({
+    sub: userPayload.sub,
+  });
+  const csrfToken = generateCsrfToken();
+
+  const tokenHash = hashToken(refreshToken);
+
+  const expiresAt = new Date(
+    Date.now() + parseExpirationToMs(env.jwt.JWT_REFRESH_EXPIRATION),
+  );
+
+  await prisma.refreshToken.create({
+    data: {
+      userId: userPayload.sub,
+      tokenHash,
+      expiresAt,
+    },
+  });
+
+  setAccessTokenCookie(res, accessToken);
+  setRefreshTokenCookie(res, refreshToken);
+  setCsrfCookie(res, csrfToken);
+
+  return { csrfToken, user: userPayload };
 }
 
-export async function refreshService(res: Response, refreshToken?: string) {
-	if (!refreshToken) throw ApiError.unauthorized("Refresh token missing");
+export async function logoutService(res: Response, refreshToken: string) {
+  if (refreshToken) {
+    const tokenHash = hashToken(refreshToken);
 
-	const decoded = verifyRefreshToken(refreshToken) as RefreshTokenPayload & Partial<AccessTokenPayload>;
+    await prisma.refreshToken.updateMany({
+      where: {
+        tokenHash,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+  }
 
-	// If you need additional user data (email, roles), fetch user by `decoded.sub` here.
-	const accessPayload = { sub: decoded.sub } as AccessTokenPayload;
-
-	const accessToken = generateAccessToken(accessPayload);
-	const newRefreshToken = generateRefreshToken({ sub: decoded.sub } as RefreshTokenPayload);
-
-	setAccessTokenCookie(res, accessToken);
-	setRefreshTokenCookie(res, newRefreshToken);
-
-	const csrfToken = crypto.randomBytes(16).toString("hex");
-	setCsrfCookie(res, csrfToken);
-
-	return { csrfToken };
+  clearAuthCookies(res);
 }
 
-export function logoutService(res: Response) {
-	clearAuthCookies(res);
+export async function registerService(
+  res: Response,
+  email: string,
+  password: string,
+) {
+  if (!email || !password)
+    throw ApiError.badRequest("Email and password required");
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) throw ApiError.conflict("Email already registered");
+
+  const passwordHash = await hashPassword(password, 10);
+
+  const user = await prisma.user.create({ data: { email, passwordHash } });
+
+  const result = await loginService(res, user.email, password);
+
+  return result;
 }
-
-export async function registerService(res: Response, email: string, password: string) {
-	if (!email || !password) throw ApiError.badRequest("Email and password required");
-
-	const existing = await prisma.user.findUnique({ where: { email } });
-	if (existing) throw ApiError.conflict("Email already registered");
-
-	const passwordHash = await bcrypt.hash(password, 10);
-
-	const user = await prisma.user.create({ data: { email, passwordHash } });
-
-	const accessPayload: AccessTokenPayload = { sub: user.id, email: user.email } as AccessTokenPayload;
-	const accessToken = generateAccessToken(accessPayload);
-	const refreshToken = generateRefreshToken({ sub: user.id } as RefreshTokenPayload);
-
-	// set cookies
-	setAccessTokenCookie(res, accessToken);
-	setRefreshTokenCookie(res, refreshToken);
-
-	// store hashed refresh token in DB
-	const tokenHash = await bcrypt.hash(refreshToken, 10);
-	const expiresMs = (env.jwt.JWT_REFRESH_EXPIRATION)as StringValue;
-	const expiresAt = new Date(Date.now() + expiresMs);
-
-	await prisma.refreshToken.create({
-		data: {
-			userId: user.id,
-			tokenHash,
-			expiresAt,
-		},
-	});
-
-	const csrfToken = crypto.randomBytes(16).toString("hex");
-	setCsrfCookie(res, csrfToken);
-
-	return { csrfToken, user };
-}
-

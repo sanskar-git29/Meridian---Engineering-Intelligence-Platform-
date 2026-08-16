@@ -6,6 +6,7 @@ import {
   RefreshTokenPayload,
 } from "../../controller/auth/auth.type.js";
 
+import crypto from "node:crypto";
 import {
   RefreshTokenSchema,
   AccessTokenSchema,
@@ -57,4 +58,9 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
   } catch (err) {
     throw ApiError.unauthorized("Invalid or expired refresh token");
   }
+}
+
+
+export function generateCsrfToken(): string {
+  return crypto.randomBytes(32).toString("hex");
 }
