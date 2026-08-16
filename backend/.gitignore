@@ -120,6 +120,9 @@ prisma/*.db-journal
 # prisma/migrations/
 # prisma.config.ts
 
+# Prisma generated client
+src/generated/
+
 
 # ==========================================
 # AWS
