@@ -17,5 +17,5 @@ const env: Env = {
   },
 };
 
-export default env;
+
 export { env };

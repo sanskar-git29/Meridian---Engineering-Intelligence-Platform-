@@ -18,7 +18,7 @@ const ACCESS_SECRET = env.jwt.JWT_ACCESS_SECRET;
 const REFRESH_SECRET = env.jwt.JWT_REFRESH_SECRET;
 const ACCESS_EXP = (env.jwt.JWT_ACCESS_EXPIRATION) as StringValue;
 
-console.log("ACCESS_EXP", ACCESS_EXP);
+
 const REFRESH_EXP = (env.jwt.JWT_REFRESH_EXPIRATION) as StringValue;
 
 
