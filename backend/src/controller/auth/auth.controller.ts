@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../utility/asycnHandler.js";
 import { ApiResponse } from "../../utility/apiResponse.js";
-import { loginService, logoutService, registerService } from "./auth.services.js";
+import { loginService, logoutService, registerService, refreshService } from "./auth.services.js";
 
 
 export const loginController: RequestHandler = asyncHandler(async (req, res) => {
@@ -22,6 +22,15 @@ export const RegisterController: RequestHandler = asyncHandler(async (req, res) 
 
 
 })
+
+export const RefreshController = asyncHandler(async (req, res) => {
+  const refreshToken: string = req.cookies?.refreshToken;
+
+  await refreshService(res, refreshToken);
+
+  // Tokens are set via cookies; no response body required
+  res.sendStatus(204);
+});
 
 export const logoutController: RequestHandler = asyncHandler(async (req, res) => {
     const  refreshToken :string = req.cookies?.refreshToken;

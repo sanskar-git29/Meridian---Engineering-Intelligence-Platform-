@@ -54,6 +54,7 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
     if (!decoded.success) {
       throw ApiError.unauthorized("Invalid or expired refresh token");
     }
+    
     return decoded.data;
   } catch (err) {
     throw ApiError.unauthorized("Invalid or expired refresh token");
