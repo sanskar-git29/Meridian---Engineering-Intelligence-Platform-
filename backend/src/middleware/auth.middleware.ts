@@ -21,10 +21,7 @@ export const authMiddleware: RequestHandler = (
 
     req.user = payload;
 
-     console.log()
-
-     console.log(payload?.sub);
-console.log(payload?.email);
+    
 
     next();
   } catch (error) {
