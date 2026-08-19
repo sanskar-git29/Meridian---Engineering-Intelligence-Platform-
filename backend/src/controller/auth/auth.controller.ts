@@ -13,10 +13,10 @@ export const loginController: RequestHandler = asyncHandler(async (req, res) => 
 });
 
 export const RegisterController: RequestHandler = asyncHandler(async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password , organizationName} = req.body;
 
 
-    const {csrfToken,user }= await registerService(res, email, password);
+    const {csrfToken,user }= await registerService(res, email, password,organizationName);
 
      return res.status(201).json(new ApiResponse(201, "User registered", { csrfToken, user }));
 

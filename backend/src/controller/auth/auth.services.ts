@@ -103,6 +103,7 @@ export async function logoutService(res: Response, refreshToken: string) {
 export async function refreshService(
   res: Response,
   refreshToken?: string,
+  
 ) {
   if (!refreshToken) {
     throw ApiError.unauthorized("Refresh token missing");
@@ -202,18 +203,50 @@ export async function registerService(
   res: Response,
   email: string,
   password: string,
+  organizationName?:string
 ) {
-  if (!email || !password)
-    throw ApiError.badRequest("Email and password required");
-
+  if (!email || !password || !organizationName) {
+    throw ApiError.badRequest(
+      "Email, password and organization name required",
+    );
+  }
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw ApiError.conflict("Email already registered");
 
   const passwordHash = await hashPassword(password, 10);
+  
 
-  const user = await prisma.user.create({ data: { email, passwordHash } });
+ await prisma.$transaction(async (tx) => {
+    // 1. Create the user
+    const user = await tx.user.create({
+      data: {
+        email,
+        passwordHash,
+      },
+    });
 
-  const result = await loginService(res, user.email, password);
+    // 2. Create the organization
+    const organization = await tx.organization.create({
+      data: {
+        name: organizationName,
+        slug: organizationName
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, "-"),
+      },
+    });
+
+    // 3. Create the membership
+    await tx.membership.create({
+      data: {
+        userId: user.id,
+        organizationId: organization.id,
+        role: "OWNER",
+      },
+    });
+  });
+
+  const result = await loginService(res, email, password);
 
   return result;
 }
