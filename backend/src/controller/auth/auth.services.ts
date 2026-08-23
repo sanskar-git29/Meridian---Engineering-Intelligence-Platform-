@@ -1,5 +1,4 @@
 import type { Response } from "express";
-
 import {
   generateAccessToken,
   generateCsrfToken,
@@ -14,7 +13,7 @@ import {
   clearAuthCookies,
 } from "../../utility/cookies/cookie.services.js";
 
-import { AuthUser } from "./auth.type.js";
+import { AccessTokenPayload} from "./auth.type.js";
 import { ApiError } from "../../utility/apiError.js";
 
 import { prisma } from "../../config/prisma.confi.js";
@@ -23,6 +22,7 @@ import {
   hashToken,
   isPasswordValid,
 } from "../../utility/jwt/token_hash.js";
+
 import { env } from "../../config/env.js";
 import { parseExpirationToMs } from "../../utility/parseExpiration.js";
 
@@ -40,21 +40,31 @@ export async function loginService(
   if (!user) {
     throw ApiError.unauthorized("Invalid email or password");
   }
-
   const hashedPassword = user?.passwordHash as string;
 
   if (isPasswordValid(password, hashedPassword) === false) {
     throw ApiError.unauthorized("Invalid email or password");
   }
 
-  const userPayload: AuthUser = {
-    sub: user?.id as string,
-    email: user?.email as string,
+  const membership = await prisma.membership.findFirst({
+    where: {
+      userId: user.id,
+    },
+  });
+  if (!membership) {
+    throw ApiError.unauthorized("User is not associated with an organization");
+  }
+
+  const accessPayload: AccessTokenPayload = {
+    sub: user.id,
+    email: user.email,
+    organizationId: membership.organizationId,
+    role: membership.role,
   };
 
-  const accessToken: string = generateAccessToken(userPayload);
+  const accessToken: string = generateAccessToken(accessPayload);
   const refreshToken: string = generateRefreshToken({
-    sub: userPayload.sub,
+    sub: accessPayload.sub,
   });
   const csrfToken = generateCsrfToken();
 
@@ -66,7 +76,7 @@ export async function loginService(
 
   await prisma.refreshToken.create({
     data: {
-      userId: userPayload.sub,
+      userId: accessPayload.sub,
       tokenHash,
       expiresAt,
     },
@@ -76,12 +86,10 @@ export async function loginService(
   setRefreshTokenCookie(res, refreshToken);
   setCsrfCookie(res, csrfToken);
 
-  return { csrfToken, user: userPayload };
+  return { csrfToken, user: accessPayload };
 }
 
 export async function logoutService(res: Response, refreshToken: string) {
-
-
   if (refreshToken) {
     const tokenHash = hashToken(refreshToken);
 
@@ -99,12 +107,7 @@ export async function logoutService(res: Response, refreshToken: string) {
   clearAuthCookies(res);
 }
 
-
-export async function refreshService(
-  res: Response,
-  refreshToken?: string,
-  
-) {
+export async function refreshService(res: Response, refreshToken?: string) {
   if (!refreshToken) {
     throw ApiError.unauthorized("Refresh token missing");
   }
@@ -147,11 +150,25 @@ export async function refreshService(
     throw ApiError.unauthorized("User not found");
   }
 
+  const membership = await prisma.membership.findFirst({
+  where: {
+    userId: user.id,
+  },
+});
+
+if (!membership) {
+  throw ApiError.unauthorized(
+    "User is not associated with an organization",
+  );
+}
+
   // 7. Create NEW access token
-  const accessPayload: AuthUser = {
-    sub: user.id,
-    email: user.email,
-  };
+ const accessPayload: AccessTokenPayload = {
+  sub: user.id,
+  email: user.email,
+  organizationId: membership.organizationId,
+  role: membership.role,
+};
 
   const newAccessToken = generateAccessToken(accessPayload);
 
@@ -165,8 +182,7 @@ export async function refreshService(
 
   // 10. Calculate new expiration
   const newExpiresAt = new Date(
-    Date.now() +
-      parseExpirationToMs(env.jwt.JWT_REFRESH_EXPIRATION),
+    Date.now() + parseExpirationToMs(env.jwt.JWT_REFRESH_EXPIRATION),
   );
 
   // 11. Revoke OLD refresh token
@@ -198,25 +214,22 @@ export async function refreshService(
 
   // Do not return anything — tokens are set in cookies
 }
- 
+
 export async function registerService(
   res: Response,
   email: string,
   password: string,
-  organizationName?:string
+  organizationName?: string,
 ) {
   if (!email || !password || !organizationName) {
-    throw ApiError.badRequest(
-      "Email, password and organization name required",
-    );
+    throw ApiError.badRequest("Email, password and organization name required");
   }
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) throw ApiError.conflict("Email already registered");
 
   const passwordHash = await hashPassword(password, 10);
-  
 
- await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     // 1. Create the user
     const user = await tx.user.create({
       data: {
@@ -229,10 +242,7 @@ export async function registerService(
     const organization = await tx.organization.create({
       data: {
         name: organizationName,
-        slug: organizationName
-          .toLowerCase()
-          .trim()
-          .replace(/\s+/g, "-"),
+        slug: organizationName.toLowerCase().trim().replace(/\s+/g, "-"),
       },
     });
 

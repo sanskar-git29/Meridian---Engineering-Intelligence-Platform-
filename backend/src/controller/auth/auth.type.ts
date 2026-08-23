@@ -8,6 +8,7 @@ type AuthUser = {
   sub: string;
   email: string;
   
+  
 };
 export{
     AuthUser,
