@@ -30,10 +30,34 @@ export async function loginService(
   res: Response,
   email: string,
   password: string,
+  organizationName:string
 ) {
-  if (!email || !password) {
-    throw ApiError.badRequest("Email and password required");
+  if (!email || !password || !organizationName) {
+  throw ApiError.badRequest(
+    "Email, password and organization name required"
+  );
+}
+
+
+  // 2. Find organization
+   const slug = organizationName
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-");
+
+  const organization = await prisma.organization.findUnique({
+    where: {
+      slug,
+    },
+  });
+
+
+  if (!organization) {
+    throw ApiError.unauthorized("Invalid organization");
   }
+
+  
+
 
   const user = await prisma.user.findUnique({ where: { email } });
 
@@ -46,21 +70,33 @@ export async function loginService(
     throw ApiError.unauthorized("Invalid email or password");
   }
 
-  const membership = await prisma.membership.findFirst({
+  const membership = await prisma.$transaction(async (tx) => {
+  await tx.$executeRaw`
+    SELECT set_config(
+      'app.current_org_id',
+      ${organization.id},
+      true
+    )
+  `;
+
+  return tx.membership.findFirst({
     where: {
       userId: user.id,
+      organizationId: organization.id,
     },
   });
+});
+
   if (!membership) {
     throw ApiError.unauthorized("User is not associated with an organization");
   }
 
   const accessPayload: AccessTokenPayload = {
-    sub: user.id,
-    email: user.email,
-    organizationId: membership.organizationId,
-    role: membership.role,
-  };
+  sub: user.id,
+  email: user.email,
+  organizationId: membership.organizationId,
+  role: membership.role,
+};
 
   const accessToken: string = generateAccessToken(accessPayload);
   const refreshToken: string = generateRefreshToken({
@@ -246,6 +282,13 @@ export async function registerService(
       },
     });
 
+    await tx.$executeRaw`
+    SELECT set_config(
+      'app.current_org_id',
+      ${organization.id},
+      true
+    )
+  `;
     // 3. Create the membership
     await tx.membership.create({
       data: {
@@ -256,7 +299,7 @@ export async function registerService(
     });
   });
 
-  const result = await loginService(res, email, password);
+  const result = await loginService(res, email, password,organizationName);
 
   return result;
 }

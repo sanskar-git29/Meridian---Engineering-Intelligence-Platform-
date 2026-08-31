@@ -5,9 +5,9 @@ import { loginService, logoutService, registerService, refreshService } from "./
 
 
 export const loginController: RequestHandler = asyncHandler(async (req, res) => {
-   const { email, password } = req.body;
+   const { email, password,organizationName, } = req.body;
    
-   const { csrfToken, user } = await loginService(res, email, password );
+   const { csrfToken, user } = await loginService(res, email, password ,organizationName,);
    return res.status(200).json(new ApiResponse(200, "Login successful", { csrfToken, user }));
 
 });
