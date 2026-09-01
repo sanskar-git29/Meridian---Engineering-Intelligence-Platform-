@@ -11,9 +11,15 @@ import {
   setRefreshTokenCookie,
   setCsrfCookie,
   clearAuthCookies,
+
 } from "../../utility/cookies/cookie.services.js";
 
+import { withTenant } from "../../lib/withTenant.js";
+import { createAuditLog } from "../../lib/auditLog.js";
+
+import { AuditAction } from "../../lib/auditActions.js";
 import { AccessTokenPayload} from "./auth.type.js";
+
 import { ApiError } from "../../utility/apiError.js";
 
 import { prisma } from "../../config/prisma.confi.js";
@@ -30,17 +36,18 @@ export async function loginService(
   res: Response,
   email: string,
   password: string,
-  organizationName:string
+  organizationName: string,
+  ipAddress?: string,
+  userAgent?: string,
 ) {
   if (!email || !password || !organizationName) {
-  throw ApiError.badRequest(
-    "Email, password and organization name required"
-  );
-}
+    throw ApiError.badRequest(
+      "Email, password and organization name required",
+    );
+  }
 
-
-  // 2. Find organization
-   const slug = organizationName
+  // 1. Find organization
+  const slug = organizationName
     .toLowerCase()
     .trim()
     .replace(/\s+/g, "-");
@@ -51,94 +58,197 @@ export async function loginService(
     },
   });
 
-
   if (!organization) {
     throw ApiError.unauthorized("Invalid organization");
   }
 
-  
-
-
-  const user = await prisma.user.findUnique({ where: { email } });
-
-  if (!user) {
-    throw ApiError.unauthorized("Invalid email or password");
-  }
-  const hashedPassword = user?.passwordHash as string;
-
-  if (isPasswordValid(password, hashedPassword) === false) {
-    throw ApiError.unauthorized("Invalid email or password");
-  }
-
-  const membership = await prisma.$transaction(async (tx) => {
-  await tx.$executeRaw`
-    SELECT set_config(
-      'app.current_org_id',
-      ${organization.id},
-      true
-    )
-  `;
-
-  return tx.membership.findFirst({
+  // 2. Find user
+  const user = await prisma.user.findUnique({
     where: {
-      userId: user.id,
-      organizationId: organization.id,
+      email,
     },
   });
-});
 
-  if (!membership) {
-    throw ApiError.unauthorized("User is not associated with an organization");
-  }
-
-  const accessPayload: AccessTokenPayload = {
-  sub: user.id,
-  email: user.email,
-  organizationId: membership.organizationId,
-  role: membership.role,
-};
-
-  const accessToken: string = generateAccessToken(accessPayload);
-  const refreshToken: string = generateRefreshToken({
-    sub: accessPayload.sub,
+  if (!user) {
+  await withTenant(organization.id, async (tx) => {
+    await createAuditLog(tx, {
+      organizationId: organization.id,
+      action: AuditAction.LOGIN_FAILED,
+      resourceType: "User",
+      metadata: {
+        reason: "user_not_found",
+      },
+      ipAddress,
+      userAgent,
+    });
   });
-  const csrfToken = generateCsrfToken();
 
-  const tokenHash = hashToken(refreshToken);
+  throw ApiError.unauthorized("Invalid email or password");
+}
 
-  const expiresAt = new Date(
-    Date.now() + parseExpirationToMs(env.jwt.JWT_REFRESH_EXPIRATION),
+  // 3. Verify password
+  const hashedPassword = user.passwordHash;
+
+  if (isPasswordValid(password, hashedPassword) === false) {
+  await withTenant(organization.id, async (tx) => {
+    await createAuditLog(tx, {
+      actorId: user.id,
+      organizationId: organization.id,
+      action: AuditAction.LOGIN_FAILED,
+      resourceType: "User",
+      resourceId: user.id,
+      metadata: {
+        reason: "invalid_password",
+      },
+      ipAddress,
+      userAgent,
+    });
+  });
+
+  throw ApiError.unauthorized("Invalid email or password");
+}
+
+  // 4. Find membership inside tenant context
+  const membership = await withTenant(
+    organization.id,
+    async (tx) => {
+      return tx.membership.findFirst({
+        where: {
+          userId: user.id,
+          organizationId: organization.id,
+        },
+      });
+    },
   );
 
+  if (!membership) {
+    throw ApiError.unauthorized(
+      "User is not associated with an organization",
+    );
+  }
+
+  // 5. Create access-token payload
+  const accessPayload: AccessTokenPayload = {
+    sub: user.id,
+    email: user.email,
+    organizationId: membership.organizationId,
+    role: membership.role,
+  };
+
+  // 6. Generate tokens
+  const accessToken = generateAccessToken(accessPayload);
+
+  const refreshToken = generateRefreshToken({
+    sub: accessPayload.sub,
+  });
+
+  const csrfToken = generateCsrfToken();
+
+  // 7. Hash refresh token
+  const tokenHash = hashToken(refreshToken);
+
+  // 8. Calculate expiration
+  const expiresAt = new Date(
+    Date.now() +
+      parseExpirationToMs(env.jwt.JWT_REFRESH_EXPIRATION),
+  );
+
+  // 9. Store refresh token
   await prisma.refreshToken.create({
     data: {
       userId: accessPayload.sub,
       tokenHash,
+      organizationId: organization.id,
       expiresAt,
     },
   });
 
+
+  // 10. Create audit log
+  await withTenant(organization.id, async (tx) => {
+    await createAuditLog(tx, {
+      actorId: user.id,
+      organizationId: organization.id,
+      action: AuditAction.LOGIN,
+      resourceType: "User",
+      resourceId: user.id,
+      metadata: {
+        method: "password",
+      },
+      ipAddress,
+      userAgent,
+    });
+  });
+ 
+
+  // 11. Set cookies
   setAccessTokenCookie(res, accessToken);
   setRefreshTokenCookie(res, refreshToken);
   setCsrfCookie(res, csrfToken);
 
-  return { csrfToken, user: accessPayload };
+  return {
+    csrfToken,
+    user: accessPayload,
+  };
 }
 
-export async function logoutService(res: Response, refreshToken: string) {
-  if (refreshToken) {
-    const tokenHash = hashToken(refreshToken);
+export async function logoutService(
+  res: Response,
+  refreshToken: string,
+  ipAddress?: string,
+  userAgent?: string,
+) {
+  
 
-    await prisma.refreshToken.updateMany({
+  if (!refreshToken) {
+    
+    clearAuthCookies(res);
+    return;
+  }
+
+  const tokenHash = hashToken(refreshToken);
+
+  const storedToken = await prisma.refreshToken.findUnique({
+    where: {
+      tokenHash,
+    },
+  });
+
+  
+
+  if (storedToken) {
+   
+
+    await withTenant(
+      storedToken.organizationId,
+      async (tx) => {
+        await createAuditLog(tx, {
+          actorId: storedToken.userId,
+          organizationId: storedToken.organizationId,
+          action: AuditAction.LOGOUT,
+          resourceType: "User",
+          resourceId: storedToken.userId,
+          metadata: {
+            method: "refresh_token",
+          },
+          ipAddress,
+          userAgent,
+        });
+      },
+    );
+
+   
+
+    await prisma.refreshToken.update({
       where: {
-        tokenHash,
-        revokedAt: null,
+        id: storedToken.id,
       },
       data: {
         revokedAt: new Date(),
       },
     });
-  }
+
+    
 
   clearAuthCookies(res);
 }
@@ -186,11 +296,17 @@ export async function refreshService(res: Response, refreshToken?: string) {
     throw ApiError.unauthorized("User not found");
   }
 
-  const membership = await prisma.membership.findFirst({
-  where: {
-    userId: user.id,
+  const membership = await withTenant(
+  storedToken.organizationId,
+  async (tx) => {
+    return tx.membership.findFirst({
+      where: {
+        userId: user.id,
+        organizationId: storedToken.organizationId,
+      },
+    });
   },
-});
+);
 
 if (!membership) {
   throw ApiError.unauthorized(
@@ -237,6 +353,8 @@ if (!membership) {
       userId: user.id,
       tokenHash: newTokenHash,
       expiresAt: newExpiresAt,
+       organizationId: storedToken.organizationId,
+     
     },
   });
 
@@ -258,10 +376,18 @@ export async function registerService(
   organizationName?: string,
 ) {
   if (!email || !password || !organizationName) {
-    throw ApiError.badRequest("Email, password and organization name required");
+    throw ApiError.badRequest(
+      "Email, password and organization name required",
+    );
   }
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) throw ApiError.conflict("Email already registered");
+
+  const existing = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (existing) {
+    throw ApiError.conflict("Email already registered");
+  }
 
   const passwordHash = await hashPassword(password, 10);
 
@@ -278,18 +404,23 @@ export async function registerService(
     const organization = await tx.organization.create({
       data: {
         name: organizationName,
-        slug: organizationName.toLowerCase().trim().replace(/\s+/g, "-"),
+        slug: organizationName
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/g, "-"),
       },
     });
 
+    // 3. Set tenant context
     await tx.$executeRaw`
-    SELECT set_config(
-      'app.current_org_id',
-      ${organization.id},
-      true
-    )
-  `;
-    // 3. Create the membership
+      SELECT set_config(
+        'app.current_org_id',
+        ${organization.id},
+        true
+      )
+    `;
+
+    // 4. Create membership
     await tx.membership.create({
       data: {
         userId: user.id,
@@ -297,9 +428,27 @@ export async function registerService(
         role: "OWNER",
       },
     });
+
+    // 5. Create registration audit log
+    await createAuditLog(tx, {
+      actorId: user.id,
+      organizationId: organization.id,
+      action: AuditAction.REGISTER,
+      resourceType: "User",
+      resourceId: user.id,
+      metadata: {
+        method: "password",
+      },
+    });
   });
 
-  const result = await loginService(res, email, password,organizationName);
+  // 6. Automatically login after registration
+  const result = await loginService(
+    res,
+    email,
+    password,
+    organizationName,
+  );
 
   return result;
 }

@@ -17,7 +17,7 @@ export const refreshTokenCookieConfig: CookieOptions = {
     secure: isProduction,
     sameSite: "lax",
     maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days
-    path: "/api/auth/refresh",
+    path: "/api/auth",
 };
 
 export const csrfCookieConfig: CookieOptions = {

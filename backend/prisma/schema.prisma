@@ -16,6 +16,7 @@ model User {
   updatedAt     DateTime       @updatedAt
   memberships   Membership[]
   refreshTokens RefreshToken[]
+  auditLogs AuditLog[]
 }
 
 model Membership {
@@ -38,16 +39,46 @@ model Organization {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   memberships Membership[]
+  auditLogs AuditLog[]
 }
 
 model RefreshToken {
   id        String    @id @default(uuid())
   userId    String
+  organizationId String
   tokenHash String    @unique
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+
+  organizationId String?
+  actorId        String?
+
+  action         String
+
+  resourceType   String?
+  resourceId     String?
+
+  metadata       Json?
+
+  ipAddress      String?
+  userAgent      String?
+
+  createdAt      DateTime @default(now())
+
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  actor          User? @relation(fields: [actorId],references: [id] )
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, action])
+  @@index([organizationId, actorId])
+  @@index([resourceType, resourceId])
 }
 
 enum Role {

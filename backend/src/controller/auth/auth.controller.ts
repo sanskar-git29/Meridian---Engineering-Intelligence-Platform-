@@ -7,7 +7,8 @@ import { loginService, logoutService, registerService, refreshService } from "./
 export const loginController: RequestHandler = asyncHandler(async (req, res) => {
    const { email, password,organizationName, } = req.body;
    
-   const { csrfToken, user } = await loginService(res, email, password ,organizationName,);
+   const { csrfToken, user } = await loginService(res, email, password ,organizationName,req.ip,
+  req.get("user-agent") ?? undefined);
    return res.status(200).json(new ApiResponse(200, "Login successful", { csrfToken, user }));
 
 });
@@ -35,6 +36,7 @@ export const RefreshController = asyncHandler(async (req, res) => {
 export const logoutController: RequestHandler = asyncHandler(async (req, res) => {
     const  refreshToken :string = req.cookies?.refreshToken;
 
-  logoutService(res, refreshToken);
+   await logoutService(res, refreshToken, req.ip,
+  req.get("user-agent"),);
   res.status(200).json(new ApiResponse(200, "Logged out", {}));
 });
