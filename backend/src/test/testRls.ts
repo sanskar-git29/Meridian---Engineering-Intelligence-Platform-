@@ -33,6 +33,7 @@
 import { Router } from "express";
 import { withTenant } from "../lib/withTenant.js";
 import  authenticate  from "../middleware/auth.middleware.js";
+import { ApiError } from "../utility/apiError.js";
 
 const router = Router();
 
@@ -41,6 +42,11 @@ router.get(
   authenticate,
   async (req, res) => {
     try {
+        if (!req.user) {
+  throw   ApiError.unauthorized("Authentication required");
+}
+
+// const organizationId = req.user.organizationId;
       const organizationId = req.user.organizationId ;
 
       const memberships = await withTenant(

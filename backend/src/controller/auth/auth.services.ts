@@ -198,10 +198,7 @@ export async function logoutService(
   ipAddress?: string,
   userAgent?: string,
 ) {
-  
-
   if (!refreshToken) {
-    
     clearAuthCookies(res);
     return;
   }
@@ -214,11 +211,7 @@ export async function logoutService(
     },
   });
 
-  
-
   if (storedToken) {
-   
-
     await withTenant(
       storedToken.organizationId,
       async (tx) => {
@@ -237,8 +230,6 @@ export async function logoutService(
       },
     );
 
-   
-
     await prisma.refreshToken.update({
       where: {
         id: storedToken.id,
@@ -247,8 +238,7 @@ export async function logoutService(
         revokedAt: new Date(),
       },
     });
-
-    
+  }
 
   clearAuthCookies(res);
 }
@@ -452,3 +442,4 @@ export async function registerService(
 
   return result;
 }
+
