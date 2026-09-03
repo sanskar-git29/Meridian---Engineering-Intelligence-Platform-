@@ -22,3 +22,10 @@ export const registerIpLimiter = new RateLimiterRedis({
   points: rateLimitConfig.register.ip.points,
   duration: rateLimitConfig.register.ip.duration,
 });
+
+export const refreshIpLimiter = new RateLimiterRedis({
+  storeClient: redisClient,
+  keyPrefix: "refresh:ip",
+  points: rateLimitConfig.refresh.ip.points,
+  duration: rateLimitConfig.refresh.ip.duration,
+});

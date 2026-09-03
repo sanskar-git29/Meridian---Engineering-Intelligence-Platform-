@@ -17,4 +17,10 @@ export const rateLimitConfig = {
       duration: 60 * 60,
     },
   },
+  refresh: {
+  ip: {
+    points: 20,
+    duration: 15 * 60,
+  },
+},
 } as const;

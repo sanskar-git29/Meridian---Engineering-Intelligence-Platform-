@@ -4,6 +4,7 @@ import {
     loginIpRateLimit,
     loginEmailRateLimit,
     registerIpRateLimit,
+    refreshIpRateLimit,
 } from "../middleware/auth-rate-limit.js";
 
 const authRouter = Router();
@@ -22,6 +23,11 @@ authRouter.post(
 );
 
 authRouter.post("/logout", logoutController);
-authRouter.post("/refresh", RefreshController);
+
+authRouter.post(
+  "/refresh",
+  refreshIpRateLimit,
+  RefreshController,
+);
 
 export default authRouter;

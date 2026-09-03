@@ -4,6 +4,7 @@ import {
   loginIpLimiter,
   loginEmailLimiter,
   registerIpLimiter,
+  refreshIpLimiter,
 } from "../lib/rate-limiter.js";
 
 import { createEmailRateLimitKey } from "../utility/rateLimitKey.js";
@@ -20,5 +21,10 @@ export const loginEmailRateLimit = createRateLimitMiddleware(
 
 export const registerIpRateLimit = createRateLimitMiddleware(
   registerIpLimiter,
+  (req) => req.ip ?? "unknown",
+);
+
+export const refreshIpRateLimit = createRateLimitMiddleware(
+  refreshIpLimiter,
   (req) => req.ip ?? "unknown",
 );
