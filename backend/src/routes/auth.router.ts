@@ -1,11 +1,26 @@
 import { Router } from "express";
 import { loginController, logoutController, RegisterController, RefreshController } from "../controller/auth/auth.controller.js";
-const authRouter = Router();
-//  import authMiddleware from "../middleware/auth.middleware.js";
-//  import { requireRole } from "../middleware/authorization.middleware.js";
+import {
+    loginIpRateLimit,
+    loginEmailRateLimit,
+    registerIpRateLimit,
+} from "../middleware/auth-rate-limit.js";
 
-authRouter.post("/login", loginController);
-authRouter.post("/register", RegisterController);
+const authRouter = Router();
+
+authRouter.post(
+  "/login",
+  loginIpRateLimit,
+  loginEmailRateLimit,
+  loginController,
+);
+
+authRouter.post(
+  "/register",
+  registerIpRateLimit,
+  RegisterController,
+);
+
 authRouter.post("/logout", logoutController);
 authRouter.post("/refresh", RefreshController);
 
