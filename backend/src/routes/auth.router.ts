@@ -1,10 +1,17 @@
 import { Router } from "express";
-import { loginController, logoutController, RegisterController, RefreshController } from "../controller/auth/auth.controller.js";
+
 import {
-    loginIpRateLimit,
-    loginEmailRateLimit,
-    registerIpRateLimit,
-    refreshIpRateLimit,
+  loginController,
+  logoutController,
+  RegisterController,
+  RefreshController,
+} from "../controller/auth/auth.controller.js";
+
+import {
+  loginIpRateLimit,
+  loginEmailRateLimit,
+  registerIpRateLimit,
+  refreshTokenRateLimit,
 } from "../middleware/auth-rate-limit.js";
 
 const authRouter = Router();
@@ -22,11 +29,14 @@ authRouter.post(
   RegisterController,
 );
 
-authRouter.post("/logout", logoutController);
+authRouter.post(
+  "/logout",
+  logoutController,
+);
 
 authRouter.post(
   "/refresh",
-  refreshIpRateLimit,
+  refreshTokenRateLimit,
   RefreshController,
 );
 

@@ -4,7 +4,6 @@ export const rateLimitConfig = {
       points: 10,
       duration: 15 * 60,
     },
-
     email: {
       points: 5,
       duration: 15 * 60,
@@ -17,10 +16,11 @@ export const rateLimitConfig = {
       duration: 60 * 60,
     },
   },
+
   refresh: {
-  ip: {
-    points: 20,
-    duration: 15 * 60,
+    token: {
+      points: 20,
+      duration: 15 * 60,
+    },
   },
-},
 } as const;

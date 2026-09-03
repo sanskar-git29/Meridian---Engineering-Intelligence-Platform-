@@ -4,10 +4,13 @@ import {
   loginIpLimiter,
   loginEmailLimiter,
   registerIpLimiter,
-  refreshIpLimiter,
+  refreshTokenLimiter,
 } from "../lib/rate-limiter.js";
 
-import { createEmailRateLimitKey } from "../utility/rateLimitKey.js";
+import {
+  createEmailRateLimitKey,
+  createRefreshTokenRateLimitKey,
+} from "../utility/rateLimitKey.js";
 
 export const loginIpRateLimit = createRateLimitMiddleware(
   loginIpLimiter,
@@ -24,7 +27,15 @@ export const registerIpRateLimit = createRateLimitMiddleware(
   (req) => req.ip ?? "unknown",
 );
 
-export const refreshIpRateLimit = createRateLimitMiddleware(
-  refreshIpLimiter,
-  (req) => req.ip ?? "unknown",
+export const refreshTokenRateLimit = createRateLimitMiddleware(
+  refreshTokenLimiter,
+  (req) => {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!refreshToken) {
+      return `missing-refresh-token:${req.ip ?? "unknown"}`;
+    }
+
+    return createRefreshTokenRateLimitKey(refreshToken);
+  },
 );

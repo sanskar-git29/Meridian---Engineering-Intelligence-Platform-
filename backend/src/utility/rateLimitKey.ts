@@ -10,3 +10,14 @@ export const createEmailRateLimitKey = (email: string): string => {
 
   return `email:${hash}`;
 };
+
+export const createRefreshTokenRateLimitKey = (
+  refreshToken: string,
+): string => {
+  const hash = crypto
+    .createHash("sha256")
+    .update(refreshToken)
+    .digest("hex");
+
+  return `refresh-token:${hash}`;
+};

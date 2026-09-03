@@ -1,4 +1,5 @@
 import { RateLimiterRedis } from "rate-limiter-flexible";
+
 import { redisClient } from "./redis.js";
 import { rateLimitConfig } from "../config/rate-limit.js";
 
@@ -23,9 +24,9 @@ export const registerIpLimiter = new RateLimiterRedis({
   duration: rateLimitConfig.register.ip.duration,
 });
 
-export const refreshIpLimiter = new RateLimiterRedis({
+export const refreshTokenLimiter = new RateLimiterRedis({
   storeClient: redisClient,
-  keyPrefix: "refresh:ip",
-  points: rateLimitConfig.refresh.ip.points,
-  duration: rateLimitConfig.refresh.ip.duration,
+  keyPrefix: "refresh:token",
+  points: rateLimitConfig.refresh.token.points,
+  duration: rateLimitConfig.refresh.token.duration,
 });
