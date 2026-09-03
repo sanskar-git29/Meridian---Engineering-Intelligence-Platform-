@@ -11,4 +11,5 @@ export interface Env {
     JWT_ACCESS_EXPIRATION: string;
     JWT_REFRESH_EXPIRATION: string;
   };
+  REDIS_URL: string
 }

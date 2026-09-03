@@ -15,6 +15,8 @@ const env: Env = {
     JWT_ACCESS_EXPIRATION: process.env.JWT_ACCESS_EXPIRATION ?? "15m",
     JWT_REFRESH_EXPIRATION: process.env.JWT_REFRESH_EXPIRATION ?? "7d",
   },
+
+  REDIS_URL: requireEnv("REDIS_URL"),
 };
 
 
