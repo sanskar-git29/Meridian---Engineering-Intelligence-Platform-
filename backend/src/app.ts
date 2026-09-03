@@ -1,6 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import helmet from "helmet";
 import testRlsRouter from  "./test/testRls.js"
 
 import { env } from "./config/env.js";
@@ -14,6 +15,7 @@ app.use(
     credentials: true,
   }),
 );
+app.use(helmet());
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
