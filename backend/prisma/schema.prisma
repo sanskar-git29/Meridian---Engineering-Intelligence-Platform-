@@ -16,7 +16,7 @@ model User {
   updatedAt     DateTime       @updatedAt
   memberships   Membership[]
   refreshTokens RefreshToken[]
-  auditLogs AuditLog[]
+  auditLogs     AuditLog[]
 }
 
 model Membership {
@@ -33,47 +33,42 @@ model Membership {
 }
 
 model Organization {
-  id          String       @id @default(uuid())
-  name        String
-  slug        String       @unique
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  memberships Membership[]
-  auditLogs AuditLog[]
+  id                   String                @id @default(uuid())
+  name                 String
+  slug                 String                @unique
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  memberships          Membership[]
+  auditLogs            AuditLog[]
+  integrations         Integration[]
+  costRecords          CostRecord[]
+  resourceUtilizations ResourceUtilization[]
 }
 
 model RefreshToken {
-  id        String    @id @default(uuid())
-  userId    String
+  id             String    @id @default(uuid())
+  userId         String
   organizationId String
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash      String    @unique
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
-  id             String   @id @default(uuid())
-
+  id             String        @id @default(uuid())
   organizationId String?
   actorId        String?
-
   action         String
-
   resourceType   String?
   resourceId     String?
-
   metadata       Json?
-
   ipAddress      String?
   userAgent      String?
-
-  createdAt      DateTime @default(now())
-
+  createdAt      DateTime      @default(now())
   organization   Organization? @relation(fields: [organizationId], references: [id])
-
-  actor          User? @relation(fields: [actorId],references: [id] )
+  actor          User?         @relation(fields: [actorId], references: [id])
 
   @@index([organizationId, createdAt])
   @@index([organizationId, action])
@@ -81,8 +76,84 @@ model AuditLog {
   @@index([resourceType, resourceId])
 }
 
+model Integration {
+  id                   String                @id @default(uuid())
+  organizationId       String
+  name                 String
+  provider             IntegrationProvider
+  status               IntegrationStatus
+  config               Json?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  costRecords          CostRecord[]
+  resourceUtilizations ResourceUtilization[]
+
+  @@index([organizationId])
+  @@index([organizationId, provider])
+}
+
+model CostRecord {
+  id             String       @id @default(uuid())
+  organizationId String
+  integrationId  String
+  externalId     String
+  service        String
+  team           String?
+  project        String?
+  environment    String?
+  amount         Decimal
+  currency       String
+  date           DateTime
+  region         String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, externalId])
+  @@index([organizationId, date])
+  @@index([organizationId, service, date])
+  @@index([organizationId, team, date])
+  @@index([organizationId, project, date])
+}
+
+model ResourceUtilization {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  integrationId      String
+  resourceId         String
+  resourceType       String
+  service            String
+  cpuUtilization     Decimal?
+  memoryUtilization  Decimal?
+  networkUtilization Decimal?
+  periodStart        DateTime
+  periodEnd          DateTime
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration        Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, resourceId, periodStart, periodEnd])
+  @@index([organizationId, service])
+  @@index([organizationId, resourceType])
+  @@index([organizationId, periodStart])
+}
+
 enum Role {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum IntegrationProvider {
+  AWS
+}
+
+enum IntegrationStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  DISCONNECTED
 }
