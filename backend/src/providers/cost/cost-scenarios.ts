@@ -1,6 +1,7 @@
 export const costScenarios = {
   production: {
     name: "Production",
+    growthPercentPerMonth: 0.05,
 
     regions: [
       "us-east-1",
@@ -49,6 +50,7 @@ export const costScenarios = {
 
   development: {
     name: "Development",
+    growthPercentPerMonth: 0.02,
 
     regions: [
       "us-east-1",
@@ -96,6 +98,7 @@ export const costScenarios = {
 
   sandbox: {
     name: "Sandbox",
+    growthPercentPerMonth: 0.01,
 
     regions: [
       "us-east-1",

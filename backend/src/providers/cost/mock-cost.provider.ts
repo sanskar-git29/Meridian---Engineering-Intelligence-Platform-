@@ -13,9 +13,24 @@ class MockCostProvider implements CostProvider {
     // console.log("Using scenario:", scenario.name);
 
     const currentDate = new Date(input.startDate);
+    const weights = regionWeights[scenario.regions.length];
+
+    if (!weights) {
+      throw new Error(
+        `No region weights configured for ${scenario.regions.length} regions`,
+      );
+    }
 
     while (currentDate <= input.endDate) {
       const day = currentDate.getDate();
+      const monthsSinceStart =
+        (currentDate.getFullYear() - input.startDate.getFullYear()) * 12 +
+        (currentDate.getMonth() - input.startDate.getMonth());
+
+      const growthMultiplier = Math.pow(
+        1 + scenario.growthPercentPerMonth,
+        monthsSinceStart,
+      );
 
       for (const [serviceName, serviceConfig] of Object.entries(
         scenario.services,
@@ -27,18 +42,11 @@ class MockCostProvider implements CostProvider {
           serviceConfig.variationPercent *
           variationFactor;
 
-        let totalAmount = serviceConfig.baseAmount + variation;
+        let totalAmount =
+          (serviceConfig.baseAmount + variation) * growthMultiplier;
 
         if (day === serviceConfig.spike.day) {
           totalAmount *= serviceConfig.spike.multiplier;
-        }
-
-        const weights = regionWeights[scenario.regions.length];
-
-        if (!weights) {
-          throw new Error(
-            `No region weights configured for ${scenario.regions.length} regions`,
-          );
         }
 
         scenario.regions.forEach((region, index) => {
