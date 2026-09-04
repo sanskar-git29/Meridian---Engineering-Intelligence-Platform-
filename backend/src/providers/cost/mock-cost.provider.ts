@@ -1,9 +1,8 @@
-import {
-  CostLineItem,
-  GetCostsInput,
-} from "./cost.type.js";
+import { CostLineItem, GetCostsInput } from "./cost.type.js";
 import { CostProvider } from "./cost-provider.js";
 import { costScenarios } from "./cost-scenarios.js";
+
+import { regionWeights } from "./region-weights.js";
 
 class MockCostProvider implements CostProvider {
   async getCosts(input: GetCostsInput): Promise<CostLineItem[]> {
@@ -11,26 +10,50 @@ class MockCostProvider implements CostProvider {
 
     const scenario = costScenarios[input.scenario];
 
-    console.log("Using scenario:", scenario.name);
+    // console.log("Using scenario:", scenario.name);
 
     const currentDate = new Date(input.startDate);
 
     while (currentDate <= input.endDate) {
       const day = currentDate.getDate();
 
-      for (const [serviceName, baseAmount] of Object.entries(
+      for (const [serviceName, serviceConfig] of Object.entries(
         scenario.services,
       )) {
-        const variation = (day % 5) - 2;
-        const amount = Number(baseAmount) + variation;
+        const variationFactor = (((day * 17) % 21) - 10) / 100;
 
-        costs.push({
-          externalId: `mock-${input.integrationId}-${currentDate.toISOString()}-${serviceName}`,
-          date: new Date(currentDate),
-          service: serviceName,
-          amount: amount.toFixed(2),
-          currency: "USD",
-          region: "us-east-1",
+        const variation =
+          serviceConfig.baseAmount *
+          serviceConfig.variationPercent *
+          variationFactor;
+
+        let totalAmount = serviceConfig.baseAmount + variation;
+
+        if (day === serviceConfig.spike.day) {
+          totalAmount *= serviceConfig.spike.multiplier;
+        }
+
+        const weights = regionWeights[scenario.regions.length];
+
+        if (!weights) {
+          throw new Error(
+            `No region weights configured for ${scenario.regions.length} regions`,
+          );
+        }
+
+        scenario.regions.forEach((region, index) => {
+          const weight = weights[index];
+
+          const regionalAmount = totalAmount * weight;
+
+          costs.push({
+            externalId: `mock-${input.integrationId}-${currentDate.toISOString()}-${serviceName}-${region}`,
+            date: new Date(currentDate),
+            service: serviceName,
+            amount: regionalAmount.toFixed(2),
+            currency: "USD",
+            region,
+          });
         });
       }
 
@@ -41,6 +64,4 @@ class MockCostProvider implements CostProvider {
   }
 }
 
-export {
-  MockCostProvider,
-};
+export { MockCostProvider };
