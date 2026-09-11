@@ -6,7 +6,9 @@ import type {
 import { asyncHandler } from "../../utility/asycnHandler.js";
 import { ApiError } from "../../utility/apiError.js";
 
-import { CostAnomalyService } from "../../services/cost/cost-anomaly.service.js";
+import {
+  CostAnomalyService,
+} from "../../services/cost/cost-anomaly.service.js";
 
 import { costDateRangeSchema } from "./cost.schema.js";
 

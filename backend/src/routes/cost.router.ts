@@ -8,6 +8,7 @@ import {
 import {
   getCostAnomalies,
 } from "../controller/cost/cost-anomaly.controller.js";
+
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
 const router = Router();
@@ -28,4 +29,5 @@ router.get(
   "/anomalies",
   getCostAnomalies
 );
+
 export default router;

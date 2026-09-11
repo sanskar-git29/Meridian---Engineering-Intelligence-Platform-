@@ -38,27 +38,25 @@ export class CostAnomalyRepository {
       },
     });
 
-    const dailyCosts = new Map<
-      string,
-      DailyCost
-    >();
+    const dailyCosts = new Map<string, DailyCost>();
 
     for (const record of records) {
-      const date = record.date
+      const dateKey = record.date
         .toISOString()
         .slice(0, 10);
 
-      const existing = dailyCosts.get(date);
+      const existing = dailyCosts.get(dateKey);
 
       if (existing) {
         existing.amount += Number(record.amount);
-      } else {
-        dailyCosts.set(date, {
-          date: new Date(`${date}T00:00:00.000Z`),
-          amount: Number(record.amount),
-          currency: record.currency,
-        });
+        continue;
       }
+
+      dailyCosts.set(dateKey, {
+        date: new Date(`${dateKey}T00:00:00.000Z`),
+        amount: Number(record.amount),
+        currency: record.currency,
+      });
     }
 
     return Array.from(dailyCosts.values());

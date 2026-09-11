@@ -129,6 +129,10 @@ async function testCostAnomaly() {
       `Detected anomalies: ${anomalies.length}`
     );
 
+    // -----------------------------------------
+    // Validate count
+    // -----------------------------------------
+
     if (anomalies.length !== 2) {
       throw new Error(
         `Expected 2 anomalies, got ${anomalies.length}`
@@ -136,7 +140,7 @@ async function testCostAnomaly() {
     }
 
     // -----------------------------------------
-    // First anomaly
+    // Validate first anomaly
     // -----------------------------------------
 
     const first =
@@ -165,13 +169,19 @@ async function testCostAnomaly() {
 
     if (first.expectedCost !== 101.14) {
       throw new Error(
-        `Expected cost should be 101.14, got ${first.expectedCost}`
+        `Expected expected cost 101.14, got ${first.expectedCost}`
       );
     }
 
     if (first.severity !== "HIGH") {
       throw new Error(
         `Expected HIGH severity, got ${first.severity}`
+      );
+    }
+
+    if (first.currency !== "USD") {
+      throw new Error(
+        `Expected USD, got ${first.currency}`
       );
     }
 

@@ -33,8 +33,21 @@ export class CostAnomalyService {
     options: AnomalyOptions = {}
   ): Promise<CostAnomaly[]> {
     const windowSize = options.windowSize ?? 7;
+
     const thresholdPercent =
       options.thresholdPercent ?? 25;
+
+    if (windowSize < 1) {
+      throw new Error(
+        "windowSize must be greater than 0"
+      );
+    }
+
+    if (thresholdPercent < 0) {
+      throw new Error(
+        "thresholdPercent cannot be negative"
+      );
+    }
 
     return withTenant(
       organizationId,
@@ -65,6 +78,10 @@ export class CostAnomalyService {
   ): CostAnomaly[] {
     const anomalies: CostAnomaly[] = [];
 
+    if (dailyCosts.length <= windowSize) {
+      return anomalies;
+    }
+
     for (
       let index = windowSize;
       index < dailyCosts.length;
@@ -92,7 +109,9 @@ export class CostAnomalyService {
           expectedCost) *
         100;
 
-      if (increasePercent < thresholdPercent) {
+      if (
+        increasePercent < thresholdPercent
+      ) {
         continue;
       }
 
