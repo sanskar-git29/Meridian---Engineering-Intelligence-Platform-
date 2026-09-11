@@ -1,20 +1,13 @@
-export interface CostLineItem {
-  externalId: string;
+import { z } from "zod";
+import {
+  CostLineItemSchema,
+  GetCostsSchema,
+} from "./cost.schema.js";
 
-  service: string;
+type CostLineItem = z.infer<typeof CostLineItemSchema>;
+type GetCostsInput = z.infer<typeof GetCostsSchema>;
 
-  team?: string;
-  project?: string;
-  environment?: string;
-
-  amount: number;
-  currency: string;
-
-  date: Date;
-  region?: string;
-}
-
-export interface CostDateRange {
-  startDate: Date;
-  endDate: Date;
-}
+export {
+  CostLineItem,
+  GetCostsInput,
+};

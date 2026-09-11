@@ -35,12 +35,11 @@ model Membership {
 }
 
 model Organization {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id                   String                @id @default(uuid())
+  name                 String
+  slug                 String                @unique
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
   memberships          Membership[]
   auditLogs            AuditLog[]
   integrations         Integration[]
@@ -56,29 +55,22 @@ model RefreshToken {
   expiresAt      DateTime
   revokedAt      DateTime?
   createdAt      DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
-  id             String  @id @default(uuid())
+  id             String        @id @default(uuid())
   organizationId String?
   actorId        String?
-
-  action String
-
-  resourceType String?
-  resourceId   String?
-
-  metadata Json?
-
-  ipAddress String?
-  userAgent String?
-
-  createdAt DateTime @default(now())
-
-  organization Organization? @relation(fields: [organizationId], references: [id])
-  actor        User?         @relation(fields: [actorId], references: [id])
+  action         String
+  resourceType   String?
+  resourceId     String?
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  actor          User?         @relation(fields: [actorId], references: [id])
 
   @@index([organizationId, createdAt])
   @@index([organizationId, action])
@@ -87,26 +79,24 @@ model AuditLog {
 }
 
 model Integration {
-  id             String              @id @default(uuid())
-  organizationId String
-  name           String
-  provider       IntegrationProvider
-  status         IntegrationStatus
-  config         Json?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-
+  id                   String                @id @default(uuid())
+  organizationId       String
+  name                 String
+  provider             IntegrationProvider
+  status               IntegrationStatus
+  config               Json?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
   organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   costRecords          CostRecord[]
   resourceUtilizations ResourceUtilization[]
 
-  @@unique([id, organizationId])
   @@index([organizationId])
   @@index([organizationId, provider])
 }
 
 model CostRecord {
-  id             String   @id @default(uuid())
+  id             String       @id @default(uuid())
   organizationId String
   integrationId  String
   externalId     String
@@ -118,11 +108,10 @@ model CostRecord {
   currency       String
   date           DateTime
   region         String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
   @@unique([integrationId, externalId])
   @@index([organizationId, date])
@@ -132,7 +121,7 @@ model CostRecord {
 }
 
 model ResourceUtilization {
-  id                 String   @id @default(uuid())
+  id                 String       @id @default(uuid())
   organizationId     String
   integrationId      String
   resourceId         String
@@ -143,11 +132,10 @@ model ResourceUtilization {
   networkUtilization Decimal?
   periodStart        DateTime
   periodEnd          DateTime
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration        Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
   @@unique([integrationId, resourceId, periodStart, periodEnd])
   @@index([organizationId, service])
