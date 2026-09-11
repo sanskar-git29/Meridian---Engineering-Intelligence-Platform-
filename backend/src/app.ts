@@ -2,6 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
+import costRouter from "./routes/cost.router.js";
 import testRlsRouter from  "./test/testRls.js"
 
 import { env } from "./config/env.js";
@@ -27,5 +28,6 @@ app.use(express.static("public"));
 app.use("/api/auth", authRouter);
 
 app.use("/test", testRlsRouter);
+app.use("/costs", costRouter);
 
 export default app;
