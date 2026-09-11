@@ -1,50 +1,21 @@
-
-import crypto from "node:crypto";
 import { prisma } from "../config/prisma.confi.js";
-
-const orgAId = crypto.randomUUID();
-const orgBId = crypto.randomUUID();
-
-const integrationAId = crypto.randomUUID();
-const integrationBId = crypto.randomUUID();
-
-async function cleanup() {
-  console.log("\n🧹 Cleaning test data...");
-
-  // CostRecord first because it depends on Integration
-  await prisma.costRecord.deleteMany({
-    where: {
-      integrationId: {
-        in: [integrationAId, integrationBId],
-      },
-    },
-  });
-
-  await prisma.integration.deleteMany({
-    where: {
-      id: {
-        in: [integrationAId, integrationBId],
-      },
-    },
-  });
-
-  await prisma.organization.deleteMany({
-    where: {
-      id: {
-        in: [orgAId, orgBId],
-      },
-    },
-  });
-
-  console.log("✅ Test data removed");
-}
+import { withTenant } from "../lib/withTenant.js";
 
 async function testCostRls() {
   console.log("\n🔐 Starting Cost RLS test...\n");
 
+  const orgAId = crypto.randomUUID();
+  const orgBId = crypto.randomUUID();
+
+  const integrationAId = crypto.randomUUID();
+  const integrationBId = crypto.randomUUID();
+
+  const costAId = crypto.randomUUID();
+  const costBId = crypto.randomUUID();
+
   try {
     // --------------------------------------------------
-    // Create Organization A
+    // Create Organizations
     // --------------------------------------------------
 
     await prisma.organization.create({
@@ -56,10 +27,6 @@ async function testCostRls() {
     });
 
     console.log("✅ Created Organization A");
-
-    // --------------------------------------------------
-    // Create Organization B
-    // --------------------------------------------------
 
     await prisma.organization.create({
       data: {
@@ -73,16 +40,19 @@ async function testCostRls() {
 
     // --------------------------------------------------
     // Create Integration A
+    // Tenant context MUST be set
     // --------------------------------------------------
 
-    await prisma.integration.create({
-      data: {
-        id: integrationAId,
-        organizationId: orgAId,
-        name: "AWS Test A",
-        provider: "AWS",
-        status: "ACTIVE",
-      },
+    await withTenant(orgAId, async (tx) => {
+      await tx.integration.create({
+        data: {
+          id: integrationAId,
+          organizationId: orgAId,
+          name: "AWS Test A",
+          provider: "AWS",
+          status: "ACTIVE",
+        },
+      });
     });
 
     console.log("✅ Created Integration A");
@@ -91,164 +61,276 @@ async function testCostRls() {
     // Create Integration B
     // --------------------------------------------------
 
-    await prisma.integration.create({
-      data: {
-        id: integrationBId,
-        organizationId: orgBId,
-        name: "AWS Test B",
-        provider: "AWS",
-        status: "ACTIVE",
-      },
+    await withTenant(orgBId, async (tx) => {
+      await tx.integration.create({
+        data: {
+          id: integrationBId,
+          organizationId: orgBId,
+          name: "AWS Test B",
+          provider: "AWS",
+          status: "ACTIVE",
+        },
+      });
     });
 
     console.log("✅ Created Integration B");
 
     // --------------------------------------------------
-    // Create Cost A
+    // Create Cost Record A
     // --------------------------------------------------
 
-    await prisma.costRecord.create({
-      data: {
-        organizationId: orgAId,
-        integrationId: integrationAId,
-        externalId: `test-cost-a-${Date.now()}`,
-        service: "EC2",
-        amount: 100,
-        currency: "USD",
-        date: new Date(),
-      },
+    await withTenant(orgAId, async (tx) => {
+      await tx.costRecord.create({
+        data: {
+          id: costAId,
+          organizationId: orgAId,
+          integrationId: integrationAId,
+          externalId: `rls-cost-a-${Date.now()}`,
+          service: "EC2",
+          team: "Backend",
+          project: "Platform",
+          environment: "production",
+          amount: 100,
+          currency: "USD",
+          date: new Date(),
+          region: "us-east-1",
+        },
+      });
     });
 
     console.log("✅ Created Cost A");
 
     // --------------------------------------------------
-    // Create Cost B
+    // Create Cost Record B
     // --------------------------------------------------
 
-    await prisma.costRecord.create({
-      data: {
-        organizationId: orgBId,
-        integrationId: integrationBId,
-        externalId: `test-cost-b-${Date.now()}`,
-        service: "RDS",
-        amount: 200,
-        currency: "USD",
-        date: new Date(),
-      },
+    await withTenant(orgBId, async (tx) => {
+      await tx.costRecord.create({
+        data: {
+          id: costBId,
+          organizationId: orgBId,
+          integrationId: integrationBId,
+          externalId: `rls-cost-b-${Date.now()}`,
+          service: "RDS",
+          team: "Data",
+          project: "Analytics",
+          environment: "production",
+          amount: 200,
+          currency: "USD",
+          date: new Date(),
+          region: "us-west-2",
+        },
+      });
     });
 
     console.log("✅ Created Cost B");
 
-    // --------------------------------------------------
-    // RLS TEST
-    // --------------------------------------------------
+    // ==================================================
+    // ORGANIZATION A
+    // ==================================================
 
     console.log("\n🔎 Testing Organization A...");
 
-    const orgAResult = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`
-        SET LOCAL ROLE "meridian_app"
-      `;
+    await withTenant(orgAId, async (tx) => {
+      const integrations = await tx.integration.findMany({
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
 
-      await tx.$executeRaw`
-        SELECT set_config(
-          'app.current_org_id',
-          ${orgAId},
-          true
-        )
-      `;
+      const costs = await tx.costRecord.findMany({
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
 
-      const integrations = await tx.integration.findMany();
-      const costs = await tx.costRecord.findMany();
+      console.log(
+        `Organization A integrations: ${integrations.length}`
+      );
 
-      return { integrations, costs };
+      console.log(
+        `Organization A costs: ${costs.length}`
+      );
+
+      // Should only see Organization A
+      if (integrations.length !== 1) {
+        throw new Error(
+          `Expected 1 integration for Organization A, got ${integrations.length}`
+        );
+      }
+
+      if (integrations[0].organizationId !== orgAId) {
+        throw new Error(
+          "Organization A can see another organization's integration"
+        );
+      }
+
+      if (costs.length !== 1) {
+        throw new Error(
+          `Expected 1 cost record for Organization A, got ${costs.length}`
+        );
+      }
+
+      if (costs[0].organizationId !== orgAId) {
+        throw new Error(
+          "Organization A can see another organization's cost"
+        );
+      }
+
+      console.log("✅ Organization A isolation passed");
     });
 
-    console.log(
-      `Organization A integrations: ${orgAResult.integrations.length}`
-    );
-
-    console.log(
-      `Organization A costs: ${orgAResult.costs.length}`
-    );
-
-    if (
-      orgAResult.integrations.length !== 1 ||
-      orgAResult.integrations[0]?.organizationId !== orgAId
-    ) {
-      throw new Error("❌ Organization A RLS isolation failed");
-    }
-
-    if (
-      orgAResult.costs.length !== 1 ||
-      orgAResult.costs[0]?.organizationId !== orgAId
-    ) {
-      throw new Error("❌ Organization A cost isolation failed");
-    }
-
-    console.log("✅ Organization A isolation passed");
-
-    // --------------------------------------------------
-    // Organization B
-    // --------------------------------------------------
+    // ==================================================
+    // ORGANIZATION B
+    // ==================================================
 
     console.log("\n🔎 Testing Organization B...");
 
-    const orgBResult = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`
-        SET LOCAL ROLE "meridian_app"
-      `;
+    await withTenant(orgBId, async (tx) => {
+      const integrations = await tx.integration.findMany({
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
 
-      await tx.$executeRaw`
-        SELECT set_config(
-          'app.current_org_id',
-          ${orgBId},
-          true
-        )
-      `;
+      const costs = await tx.costRecord.findMany({
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
 
-      const integrations = await tx.integration.findMany();
-      const costs = await tx.costRecord.findMany();
+      console.log(
+        `Organization B integrations: ${integrations.length}`
+      );
 
-      return { integrations, costs };
+      console.log(
+        `Organization B costs: ${costs.length}`
+      );
+
+      // Should only see Organization B
+      if (integrations.length !== 1) {
+        throw new Error(
+          `Expected 1 integration for Organization B, got ${integrations.length}`
+        );
+      }
+
+      if (integrations[0].organizationId !== orgBId) {
+        throw new Error(
+          "Organization B can see another organization's integration"
+        );
+      }
+
+      if (costs.length !== 1) {
+        throw new Error(
+          `Expected 1 cost record for Organization B, got ${costs.length}`
+        );
+      }
+
+      if (costs[0].organizationId !== orgBId) {
+        throw new Error(
+          "Organization B can see another organization's cost"
+        );
+      }
+
+      console.log("✅ Organization B isolation passed");
     });
 
-    console.log(
-      `Organization B integrations: ${orgBResult.integrations.length}`
-    );
+    // ==================================================
+    // CROSS-TENANT INSERT TEST
+    // ==================================================
 
     console.log(
-      `Organization B costs: ${orgBResult.costs.length}`
+      "\n🔎 Testing cross-tenant INSERT protection..."
     );
 
-    if (
-      orgBResult.integrations.length !== 1 ||
-      orgBResult.integrations[0]?.organizationId !== orgBId
-    ) {
-      throw new Error("❌ Organization B RLS isolation failed");
+    let crossTenantInsertBlocked = false;
+
+    try {
+      await withTenant(orgAId, async (tx) => {
+        await tx.costRecord.create({
+          data: {
+            id: crypto.randomUUID(),
+            organizationId: orgBId,
+            integrationId: integrationBId,
+            externalId: `cross-tenant-${Date.now()}`,
+            service: "S3",
+            amount: 500,
+            currency: "USD",
+            date: new Date(),
+            region: "us-east-1",
+          },
+        });
+      });
+    } catch {
+      crossTenantInsertBlocked = true;
     }
 
-    if (
-      orgBResult.costs.length !== 1 ||
-      orgBResult.costs[0]?.organizationId !== orgBId
-    ) {
-      throw new Error("❌ Organization B cost isolation failed");
+    if (!crossTenantInsertBlocked) {
+      throw new Error(
+        "Cross-tenant INSERT was not blocked by RLS"
+      );
     }
 
-    console.log("✅ Organization B isolation passed");
+    console.log("✅ Cross-tenant INSERT blocked");
+
+    // ==================================================
+    // SUCCESS
+    // ==================================================
 
     console.log("\n🎉 COST RLS TEST PASSED\n");
   } catch (error) {
     console.error("\n❌ COST RLS TEST FAILED\n");
     console.error(error);
-    throw error;
+
+    process.exitCode = 1;
   } finally {
-    await cleanup();
+    // ==================================================
+    // CLEANUP
+    // Only delete records created by this test
+    // ==================================================
+
+    console.log("🧹 Cleaning test data...");
+
+    try {
+      // Cost records first because they reference integrations
+      await prisma.costRecord.deleteMany({
+        where: {
+          id: {
+            in: [costAId, costBId],
+          },
+        },
+      });
+
+      // Integrations
+      await prisma.integration.deleteMany({
+        where: {
+          id: {
+            in: [integrationAId, integrationBId],
+          },
+        },
+      });
+
+      // Organizations
+      await prisma.organization.deleteMany({
+        where: {
+          id: {
+            in: [orgAId, orgBId],
+          },
+        },
+      });
+
+      console.log("✅ Test data removed");
+    } catch (cleanupError) {
+      console.error(
+        "⚠️ Cleanup failed:",
+        cleanupError
+      );
+
+      process.exitCode = 1;
+    }
+
     await prisma.$disconnect();
   }
 }
 
-testCostRls().catch(() => {
-  process.exit(1);
-});
-
+testCostRls();
