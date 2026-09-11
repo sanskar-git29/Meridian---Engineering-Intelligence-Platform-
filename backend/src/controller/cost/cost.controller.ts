@@ -1,6 +1,10 @@
+
 import type { Request, Response } from "express";
 
 import { CostAnalyticsService } from "../../services/cost/cost-analytics.service.js";
+
+import { ApiResponse } from "../../utility/apiResponse.js";
+
 import { costDateRangeSchema } from "./cost.schema.js";
 
 const costAnalyticsService =
@@ -37,10 +41,15 @@ export async function getCostSummary(
       parsed.data
     );
 
-  return res.status(200).json({
-    success: true,
-    data: result,
-  });
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        "Cost summary fetched successfully",
+        result
+      )
+    );
 }
 
 export async function getCostTrend(
@@ -74,8 +83,14 @@ export async function getCostTrend(
       parsed.data
     );
 
-  return res.status(200).json({
-    success: true,
-    data: result,
-  });
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        "Cost trend fetched successfully",
+        result
+      )
+    );
 }
+
