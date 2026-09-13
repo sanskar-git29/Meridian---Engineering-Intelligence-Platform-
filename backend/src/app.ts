@@ -27,7 +27,7 @@ app.use(express.static("public"));
 // Auth routes
 app.use("/api/auth", authRouter);
 
-app.use("/test", testRlsRouter);
-app.use("/costs", costRouter);
+app.use("/api/test", testRlsRouter);
+app.use("/api/costs", costRouter);
 
 export default app;

@@ -8,33 +8,38 @@ import {
 import {
   getCostAnomalies,
 } from "../controller/cost/cost-anomaly.controller.js";
+
 import {
   getCostAttribution,
 } from "../controller/cost/cost-attribution.controller.js";
 
 import { authMiddleware } from "../middleware/auth.middleware.js";
 
-const router = Router();
+const costRouter = Router();
 
-router.use(authMiddleware);
 
-router.get(
+costRouter.get(
   "/summary",
+  authMiddleware,
   getCostSummary
 );
 
-router.get(
+costRouter.get(
   "/trend",
+  authMiddleware,
   getCostTrend
 );
 
-router.get(
+costRouter.get(
   "/anomalies",
+  authMiddleware,
   getCostAnomalies
 );
 
-router.get(
+costRouter.get(
   "/anomalies/:date/attribution",
+  authMiddleware,
   getCostAttribution
 );
-export default router;
+
+export default costRouter;
