@@ -1,55 +1,187 @@
 "use client";
 
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  FiMail,
+  FiLock,
+  FiBriefcase,
+  FiEye,
+  FiEyeOff,
+  FiShield,
+  FiCheckCircle,
+} from "react-icons/fi";
+import { Input } from "@/components/ui/Input";
+import { Button } from "@/components/ui/Button";
+import { loginSchema, LoginFormData } from "@/features/auth/schemas/login-schema";
+
 export function LoginForm() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    mode: "onSubmit",
+    reValidateMode: "onSubmit",
+    defaultValues: {
+      organizationName: "",
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
+    setIsSubmitting(true);
+    
+    // Log form validation payload
+    console.log("Form validated successfully:", data);
+    
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setIsSubmitting(false);
+    setIsSubmittedSuccess(true);
+    
+    setTimeout(() => {
+      setIsSubmittedSuccess(false);
+    }, 4000);
+  };
+
   return (
-    <div className="w-full max-w-md space-y-6 rounded-2xl bg-white p-8 shadow-xl dark:bg-zinc-900 dark:border dark:border-zinc-800">
-      <div className="space-y-2 text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Sign In
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Enter your credentials to access your account
-        </p>
+    <div className="w-full space-y-7">
+      {/* Brand Identity & Header Anchor */}
+      <div className="space-y-5">
+        {/* Brand Logo & Wordmark */}
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-2xl bg-[#2265EF] text-white flex items-center justify-center font-extrabold text-lg shadow-md shadow-[#2265EF]/20">
+            <FiShield className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <span className="font-extrabold text-slate-900 text-xl tracking-tight block leading-none">
+              MERIDIAN
+            </span>
+            <span className="text-xs font-semibold text-slate-500 tracking-wider uppercase">
+              Engineering Intelligence
+            </span>
+          </div>
+        </div>
+
+        {/* Heading & Clear Subtitle Hierarchy */}
+        <div className="space-y-1.5 pt-1">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+            Sign in to your account
+          </h1>
+          <p className="text-base text-slate-600 font-medium leading-relaxed">
+            Welcome back! Enter your organization details below to access your workspace.
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+      {/* Success Feedback Banner */}
+      {isSubmittedSuccess && (
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-[#8CE1BC]/20 border border-[#8CE1BC]/50 text-[#12724F] text-sm animate-fadeIn">
+          <FiCheckCircle className="w-5.5 h-5.5 shrink-0 text-[#12724F]" />
+          <div>
+            <p className="font-semibold text-base">Validated Successfully</p>
+            <p className="text-xs opacity-90">Form inputs passed React Hook Form validation.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Login Form */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+        {/* Organization Name Field (Icon: FiBriefcase in #2265EF blue) */}
+        <Input
+          {...register("organizationName")}
+          label="Organization Name"
+          type="text"
+          autoComplete="organization"
+          icon={<FiBriefcase className="w-5 h-5 text-[#2265EF]" />}
+          error={errors.organizationName?.message}
+          helperText="e.g. acme-corp"
+        />
+
+        {/* Work Email Field (Icon: FiMail in #2265EF blue) */}
+        <Input
+          {...register("email")}
+          label="Work Email"
+          type="email"
+          autoComplete="email"
+          icon={<FiMail className="w-5 h-5 text-[#2265EF]" />}
+          error={errors.email?.message}
+          helperText="name@company.com"
+        />
+
+        {/* Password Field (Icon: FiLock in #2265EF blue) */}
         <div className="space-y-2">
-          <label
-            htmlFor="email"
-            className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            placeholder="name@example.com"
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:ring-zinc-100"
+          <Input
+            {...register("password")}
+            label="Password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            icon={<FiLock className="w-5 h-5 text-[#2265EF]" />}
+            error={errors.password?.message}
+            rightElement={
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+                className="text-slate-400 hover:text-[#2265EF] transition-colors p-1 rounded-md focus:outline-none"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <FiEyeOff className="w-5 h-5" />
+                ) : (
+                  <FiEye className="w-5 h-5" />
+                )}
+              </button>
+            }
           />
+          
+          {/* Tightly connected Forgot Password action */}
+          <div className="flex items-center justify-end pt-0.5">
+            <a
+              href="#forgot-password"
+              onClick={(e) => e.preventDefault()}
+              className="text-xs sm:text-sm font-semibold text-[#2265EF] hover:text-[#1B55CD] hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-[#2265EF] rounded-xs"
+            >
+              Forgot password?
+            </a>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <label
-            htmlFor="password"
-            className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:ring-zinc-100"
-          />
-        </div>
-
-        <button
+        {/* Primary CTA Button */}
+        <Button
           type="submit"
-          className="w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-zinc-800 focus:outline-none dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          variant="primary"
+          size="lg"
+          loading={isSubmitting}
+          className="w-full mt-3 h-13 text-base font-bold shadow-md shadow-[#2265EF]/20"
         >
           Sign In
-        </button>
+        </Button>
       </form>
+
+      {/* Footer Sign-up Option */}
+      <div className="pt-5 border-t border-slate-100 text-center space-y-2.5">
+        <p className="text-sm sm:text-base text-slate-600 font-medium">
+          Don’t have an account?{" "}
+          <a
+            href="#signup"
+            onClick={(e) => e.preventDefault()}
+            className="font-bold text-[#2265EF] hover:text-[#1B55CD] hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-[#2265EF] rounded-xs"
+          >
+            Sign up
+          </a>
+        </p>
+        <p className="text-xs text-slate-400 font-normal leading-relaxed">
+          Protected by Enterprise SSO & 256-Bit SSL Encryption.
+        </p>
+      </div>
     </div>
   );
 }
