@@ -83,12 +83,20 @@ export function LoginForm() {
 
       {/* Success Feedback Banner */}
       {isSubmittedSuccess && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-[#8CE1BC]/20 border border-[#8CE1BC]/50 text-[#12724F] text-sm animate-fadeIn">
-          <FiCheckCircle className="w-5.5 h-5.5 shrink-0 text-[#12724F]" />
-          <div>
-            <p className="font-semibold text-base">Validated Successfully</p>
-            <p className="text-xs opacity-90">Form inputs passed React Hook Form validation.</p>
+        <div className="flex flex-col gap-2 p-4 rounded-2xl bg-[#8CE1BC]/20 border border-[#8CE1BC]/50 text-[#12724F] text-sm animate-fadeIn">
+          <div className="flex items-center gap-3">
+            <FiCheckCircle className="w-5.5 h-5.5 shrink-0 text-[#12724F]" />
+            <div>
+              <p className="font-semibold text-base">Validated Successfully</p>
+              <p className="text-xs opacity-90">Form inputs passed React Hook Form validation.</p>
+            </div>
           </div>
+          <a
+            href="/dashboard"
+            className="mt-1 inline-flex items-center justify-center py-2 px-4 bg-[#12724F] text-white rounded-xl font-bold text-xs hover:bg-[#0E5B3F] transition-all shadow-xs"
+          >
+            Launch Acme Cloud Demo Dashboard →
+          </a>
         </div>
       )}
 
