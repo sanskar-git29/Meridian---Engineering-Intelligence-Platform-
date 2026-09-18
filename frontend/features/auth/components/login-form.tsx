@@ -10,16 +10,18 @@ import {
   FiEye,
   FiEyeOff,
   FiShield,
-  FiCheckCircle,
 } from "react-icons/fi";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { loginSchema, LoginFormData } from "@/features/auth/schemas/login-schema";
-
+import { authService } from "@/services/auth/authService";
+import { useRouter } from "next/navigation";
 export function LoginForm() {
+
+    const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
+  // const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
 
   const {
     register,
@@ -36,20 +38,45 @@ export function LoginForm() {
     },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
-    setIsSubmitting(true);
-    
-    // Log form validation payload
-    console.log("Form validated successfully:", data);
-    
-    await new Promise((resolve) => setTimeout(resolve, 800));
+ const onSubmit = async (data: LoginFormData) => {
+
+  setIsSubmitting(true);
+
+  try {
+    // console.log("Sending login payload:", data);
+
+    const response = await authService.login(data);
+
+
+     router.replace("/dashboard");
+
+    // console.log("Login API response:", response);
+  } catch (error) {
+    console.error("Login API error:", error);
+  } finally {
     setIsSubmitting(false);
-    setIsSubmittedSuccess(true);
-    
-    setTimeout(() => {
-      setIsSubmittedSuccess(false);
-    }, 4000);
-  };
+  }
+};
+
+// const onSubmit = async (data: LoginFormData) => {
+//   setIsSubmitting(true);
+
+//   console.log("🟡 Login form submitted");
+//   console.log("📦 Login payload:", data);
+
+//   try {
+//     const response = await authService.login(data);
+
+//     console.log("🟢 Login successful");
+//     console.log("📨 Login response:", response);
+
+//     router.replace("/dashboard");
+//   } catch (error) {
+//     console.error("🔴 Login failed:", error);
+//   } finally {
+//     setIsSubmitting(false);
+//   }
+// };
 
   return (
     <div className="w-full space-y-7">
@@ -82,7 +109,7 @@ export function LoginForm() {
       </div>
 
       {/* Success Feedback Banner */}
-      {isSubmittedSuccess && (
+      {/* {isSubmittedSuccess && (
         <div className="flex flex-col gap-2 p-4 rounded-2xl bg-[#8CE1BC]/20 border border-[#8CE1BC]/50 text-[#12724F] text-sm animate-fadeIn">
           <div className="flex items-center gap-3">
             <FiCheckCircle className="w-5.5 h-5.5 shrink-0 text-[#12724F]" />
@@ -98,7 +125,7 @@ export function LoginForm() {
             Launch Acme Cloud Demo Dashboard →
           </a>
         </div>
-      )}
+      )} */}
 
       {/* Login Form */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
