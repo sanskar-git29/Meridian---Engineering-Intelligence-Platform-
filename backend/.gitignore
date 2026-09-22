@@ -161,4 +161,5 @@ storage/
 .windsurf/
 skills-lock.json
 
-cookies-*.txt
+cookies.txt
+src/secrets/

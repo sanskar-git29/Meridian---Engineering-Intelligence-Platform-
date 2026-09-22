@@ -17,6 +17,14 @@ const env: Env = {
   },
 
   REDIS_URL: requireEnv("REDIS_URL"),
+
+ github: {
+  GITHUB_APP_ID: requireEnv("GITHUB_APP_ID"),
+  GITHUB_CLIENT_ID: requireEnv("GITHUB_CLIENT_ID"),
+  GITHUB_CLIENT_SECRET: requireEnv("GITHUB_CLIENT_SECRET"),
+  GITHUB_PRIVATE_KEY_PATH: requireEnv("GITHUB_PRIVATE_KEY_PATH"),
+  GITHUB_CALLBACK_URL: requireEnv("GITHUB_CALLBACK_URL"),
+},
 };
 
 
