@@ -4,6 +4,8 @@ import {
   consumeGitHubOAuthState,
   createGitHubOAuthState,
 } from "../../lib/githubState.js";
+import { createAuditLog } from "../../lib/auditLog.js";
+import { AuditAction } from "../../lib/auditActions.js";
 
 import { GitHubProvider } from "../../providers/github/github.provider.js";
 import type { GitHubUserData } from "../../providers/github/github.type.js";
@@ -332,11 +334,10 @@ export async function syncGitHubTeamsAndUsers(organizationId: string) {
 
       for (const githubRepository of repositories) {
         const localRepository =
-  await transactionRepository
-    .findRepositoryByGithubId(
-      installation.id,
-      githubRepository.id,
-    );
+          await transactionRepository.findRepositoryByGithubId(
+            installation.id,
+            githubRepository.id,
+          );
 
         if (!localRepository) {
           continue;
@@ -386,6 +387,24 @@ export async function syncGitHubTeamsAndUsers(organizationId: string) {
       organizationId,
       installation.id,
     );
+    await createAuditLog(tx, {
+      organizationId,
+      action: AuditAction.GITHUB_SYNC,
+      resourceType: "github_installation",
+      resourceId: installation.id,
+      metadata: {
+        usersSynced: usersById.size,
+        teamsSynced: githubTeams.length,
+        teamMembershipsSynced: teamMembers.reduce(
+          (total, item) => total + item.members.length,
+          0,
+        ),
+        teamRepositoriesSynced: teamRepositories.reduce(
+          (total, item) => total + item.repositories.length,
+          0,
+        ),
+      },
+    });
   });
 
   /*
@@ -477,150 +496,98 @@ export async function getGitHubMembers(organizationId: string) {
   const members = await repository.findActiveUsers(organizationId);
 
   return members.map((member) => ({
-  id: member.id,
+    id: member.id,
 
-  organizationId:
-    member.organizationId,
+    organizationId: member.organizationId,
 
-  githubInstallationId:
-    member.githubInstallationId,
+    githubInstallationId: member.githubInstallationId,
 
-  githubUserId:
-    member.githubUserId.toString(),
+    githubUserId: member.githubUserId.toString(),
 
-  login:
-    member.login,
+    login: member.login,
 
-  avatarUrl:
-    member.avatarUrl,
+    avatarUrl: member.avatarUrl,
 
-  htmlUrl:
-    member.htmlUrl,
+    htmlUrl: member.htmlUrl,
 
-  type:
-    member.type,
+    type: member.type,
 
-  siteAdmin:
-    member.siteAdmin,
+    siteAdmin: member.siteAdmin,
 
-  isActive:
-    member.isActive,
+    isActive: member.isActive,
 
-  createdAt:
-    member.createdAt,
+    createdAt: member.createdAt,
 
-  updatedAt:
-    member.updatedAt,
-}));
+    updatedAt: member.updatedAt,
+  }));
 }
 
+export async function getGitHubTeams(organizationId: string) {
+  const repository = new GitHubRepository(prisma);
 
-export async function getGitHubTeams(
-  organizationId: string,
-) {
-  const repository =
-    new GitHubRepository(prisma);
-
-  const teams =
-    await repository.findActiveTeams(
-      organizationId,
-    );
+  const teams = await repository.findActiveTeams(organizationId);
 
   return teams.map((team) => ({
     id: team.id,
 
-    organizationId:
-      team.organizationId,
+    organizationId: team.organizationId,
 
-    githubInstallationId:
-      team.githubInstallationId,
+    githubInstallationId: team.githubInstallationId,
 
-    githubTeamId:
-      team.githubTeamId.toString(),
+    githubTeamId: team.githubTeamId.toString(),
 
-    name:
-      team.name,
+    name: team.name,
 
-    slug:
-      team.slug,
+    slug: team.slug,
 
-    description:
-      team.description,
+    description: team.description,
 
-    privacy:
-      team.privacy,
+    privacy: team.privacy,
 
-    permission:
-      team.permission,
+    permission: team.permission,
 
-    htmlUrl:
-      team.htmlUrl,
+    htmlUrl: team.htmlUrl,
 
-    isActive:
-      team.isActive,
+    isActive: team.isActive,
 
-    createdAt:
-      team.createdAt,
+    createdAt: team.createdAt,
 
-    updatedAt:
-      team.updatedAt,
+    updatedAt: team.updatedAt,
 
-    members:
-      team.memberships.map(
-        (membership) => ({
-          id:
-            membership.githubUser.id,
+    members: team.memberships.map((membership) => ({
+      id: membership.githubUser.id,
 
-          githubUserId:
-            membership.githubUser.githubUserId.toString(),
+      githubUserId: membership.githubUser.githubUserId.toString(),
 
-          login:
-            membership.githubUser.login,
+      login: membership.githubUser.login,
 
-          avatarUrl:
-            membership.githubUser.avatarUrl,
+      avatarUrl: membership.githubUser.avatarUrl,
 
-          htmlUrl:
-            membership.githubUser.htmlUrl,
+      htmlUrl: membership.githubUser.htmlUrl,
 
-          role:
-            membership.role,
+      role: membership.role,
 
-          isInherited:
-            membership.isInherited,
-        }),
-      ),
+      isInherited: membership.isInherited,
+    })),
 
-    repositories:
-      team.repositoryPermissions.map(
-        (permission) => ({
-          id:
-            permission.repository.id,
+    repositories: team.repositoryPermissions.map((permission) => ({
+      id: permission.repository.id,
 
-          githubRepositoryId:
-            permission.repository.githubRepositoryId.toString(),
+      githubRepositoryId: permission.repository.githubRepositoryId.toString(),
 
-          name:
-            permission.repository.name,
+      name: permission.repository.name,
 
-          fullName:
-            permission.repository.fullName,
+      fullName: permission.repository.fullName,
 
-          private:
-            permission.repository.private,
+      private: permission.repository.private,
 
-          defaultBranch:
-            permission.repository.defaultBranch,
+      defaultBranch: permission.repository.defaultBranch,
 
-          htmlUrl:
-            permission.repository.htmlUrl,
+      htmlUrl: permission.repository.htmlUrl,
 
-          permission:
-            permission.permission,
+      permission: permission.permission,
 
-          isActive:
-            permission.isActive,
-        }),
-      ),
+      isActive: permission.isActive,
+    })),
   }));
 }
