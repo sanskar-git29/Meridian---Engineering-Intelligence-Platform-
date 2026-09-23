@@ -162,4 +162,7 @@ storage/
 skills-lock.json
 
 cookies.txt
+memeber-cookies.txt
+member-cookies.txt
+owner-cookies.txt
 src/secrets/

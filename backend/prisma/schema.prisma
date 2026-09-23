@@ -47,6 +47,7 @@ model Organization {
   githubInstallation   GitHubInstallation?
   costRecords          CostRecord[]
   resourceUtilizations ResourceUtilization[]
+  githubRepositories GitHubRepository[]
 }
 
 model RefreshToken {
@@ -160,12 +161,35 @@ model GitHubInstallation {
   githubOrganizationLogin String
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+  repositories GitHubRepository[]
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, githubOrganizationId])
   @@index([githubOrganizationId])
+}
+
+model GitHubRepository {
+  id                   String   @id @default(uuid())
+  organizationId       String
+  githubInstallationId String
+  githubRepositoryId   BigInt
+  name                 String
+  fullName             String
+  private              Boolean
+  defaultBranch        String?
+  htmlUrl              String
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  githubInstallation GitHubInstallation @relation(fields: [githubInstallationId], references: [id], onDelete: Cascade)
+
+  @@unique([githubInstallationId, githubRepositoryId])
+  @@index([organizationId])
+  @@index([githubInstallationId])
 }
 
 enum Role {

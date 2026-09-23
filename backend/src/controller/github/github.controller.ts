@@ -7,9 +7,12 @@ import { ApiError } from "../../utility/apiError.js";
 import {
   connectGitHubService,
   githubCallbackService,
+  syncGitHubRepositories,
 } from "./github.services.js";
 
 import { GitHubCallbackSchema } from "./gtihub.schema.js";
+
+
 
 export const connectGitHubController: RequestHandler =
   asyncHandler(async (req, res) => {
@@ -47,6 +50,26 @@ export const githubCallbackController: RequestHandler =
         200,
         "GitHub connected successfully",
         result,
+      ),
+    );
+  });
+
+  export const getGitHubRepositoriesController: RequestHandler =
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw ApiError.unauthorized();
+    }
+
+    const repositories =
+      await syncGitHubRepositories(
+        req.user.organizationId,
+      );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "GitHub repositories synchronized successfully",
+        repositories,
       ),
     );
   });

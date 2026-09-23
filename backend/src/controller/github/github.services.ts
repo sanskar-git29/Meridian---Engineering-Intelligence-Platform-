@@ -146,3 +146,59 @@ export async function githubCallbackService(
     };
   });
 }
+
+export async function syncGitHubRepositories(
+  organizationId: string,
+) {
+  const repository = new GitHubRepository(prisma);
+
+  const installation =
+    await repository.findInstallation(organizationId);
+
+  if (!installation) {
+    throw ApiError.notFound(
+      "GitHub is not connected",
+      "GITHUB_NOT_CONNECTED",
+    );
+  }
+
+  const installationToken =
+    await githubProvider.createInstallationToken(
+      installation.githubInstallationId,
+    );
+
+  const githubRepositories =
+    await githubProvider.getInstallationRepositories(
+      installationToken.token,
+    );
+
+  await prisma.$transaction(async (tx) => {
+    const transactionRepository =
+      new GitHubRepository(tx);
+
+    for (const githubRepository of githubRepositories) {
+      await transactionRepository.upsertRepository(
+        organizationId,
+        installation.id,
+        githubRepository,
+      );
+    }
+
+    await transactionRepository.deactivateRepositoriesNotIn(
+      organizationId,
+      installation.id,
+      githubRepositories.map(
+        (githubRepository) => githubRepository.id,
+      ),
+    );
+  });
+
+  const repositories =
+    await repository.findRepositories(organizationId);
+
+  return repositories.map((repository) => ({
+    ...repository,
+    githubRepositoryId:
+      repository.githubRepositoryId.toString(),
+  }));
+}

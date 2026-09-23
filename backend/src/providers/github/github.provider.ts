@@ -7,6 +7,7 @@ import { ApiError } from "../../utility/apiError.js";
 import type {
   GitHubInstallation,
   GitHubInstallationToken,
+  GitHubRepositoryData,
 } from "./github.type.js";
 
 export class GitHubProvider {
@@ -217,4 +218,36 @@ export class GitHubProvider {
       expiresAt: new Date(response.expires_at),
     };
   }
+
+  async getInstallationRepositories(
+  installationToken: string,
+): Promise<GitHubRepositoryData[]> {
+  const repositories: GitHubRepositoryData[] = [];
+
+  let page = 1;
+
+  while (true) {
+    const response = await this.request<{
+      total_count: number;
+      repositories: GitHubRepositoryData[];
+    }>(
+      `/installation/repositories?per_page=100&page=${page}`,
+      {
+        headers: {
+          Authorization: `Bearer ${installationToken}`,
+        },
+      },
+    );
+
+    repositories.push(...response.repositories);
+
+    if (response.repositories.length < 100) {
+      break;
+    }
+
+    page++;
+  }
+
+  return repositories;
+}
 }
