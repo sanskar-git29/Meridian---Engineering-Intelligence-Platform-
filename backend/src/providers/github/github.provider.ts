@@ -8,6 +8,9 @@ import type {
   GitHubInstallation,
   GitHubInstallationToken,
   GitHubRepositoryData,
+  GitHubUserData,
+  GitHubTeamData,
+  GitHubTeamMemberData,
 } from "./github.type.js";
 
 export class GitHubProvider {
@@ -114,7 +117,9 @@ export class GitHubProvider {
     return `https://github.com/apps/medit-development/installations/new?${params.toString()}`;
   }
 
-  async exchangeCodeForUserToken(code: string): Promise<string> {
+  async exchangeCodeForUserToken(
+    code: string,
+  ): Promise<string> {
     let response: Response;
 
     try {
@@ -220,34 +225,137 @@ export class GitHubProvider {
   }
 
   async getInstallationRepositories(
-  installationToken: string,
-): Promise<GitHubRepositoryData[]> {
-  const repositories: GitHubRepositoryData[] = [];
+    installationToken: string,
+  ): Promise<GitHubRepositoryData[]> {
+    const repositories: GitHubRepositoryData[] = [];
 
-  let page = 1;
+    let page = 1;
 
-  while (true) {
-    const response = await this.request<{
-      total_count: number;
-      repositories: GitHubRepositoryData[];
-    }>(
-      `/installation/repositories?per_page=100&page=${page}`,
-      {
-        headers: {
-          Authorization: `Bearer ${installationToken}`,
-        },
-      },
-    );
+    while (true) {
+      const response =
+        await this.request<{
+          total_count: number;
+          repositories: GitHubRepositoryData[];
+        }>(
+          `/installation/repositories?per_page=100&page=${page}`,
+          {
+            headers: {
+              Authorization: `Bearer ${installationToken}`,
+            },
+          },
+        );
 
-    repositories.push(...response.repositories);
+      repositories.push(...response.repositories);
 
-    if (response.repositories.length < 100) {
-      break;
+      if (response.repositories.length < 100) {
+        break;
+      }
+
+      page++;
     }
 
-    page++;
+    return repositories;
   }
 
-  return repositories;
-}
+  async getOrganizationMembers(
+    installationToken: string,
+    organizationLogin: string,
+  ): Promise<GitHubUserData[]> {
+    const members: GitHubUserData[] = [];
+
+    let page = 1;
+
+    while (true) {
+      const response =
+        await this.request<GitHubUserData[]>(
+          `/orgs/${encodeURIComponent(
+            organizationLogin,
+          )}/members?per_page=100&page=${page}`,
+          {
+            headers: {
+              Authorization: `Bearer ${installationToken}`,
+            },
+          },
+        );
+
+      members.push(...response);
+
+      if (response.length < 100) {
+        break;
+      }
+
+      page++;
+    }
+
+    return members;
+  }
+
+  async getOrganizationTeams(
+    installationToken: string,
+    organizationLogin: string,
+  ): Promise<GitHubTeamData[]> {
+    const teams: GitHubTeamData[] = [];
+
+    let page = 1;
+
+    while (true) {
+      const response =
+        await this.request<GitHubTeamData[]>(
+          `/orgs/${encodeURIComponent(
+            organizationLogin,
+          )}/teams?per_page=100&page=${page}&team_type=organization`,
+          {
+            headers: {
+              Authorization: `Bearer ${installationToken}`,
+            },
+          },
+        );
+
+      teams.push(...response);
+
+      if (response.length < 100) {
+        break;
+      }
+
+      page++;
+    }
+
+    return teams;
+  }
+
+  async getTeamMembers(
+    installationToken: string,
+    organizationLogin: string,
+    teamSlug: string,
+  ): Promise<GitHubTeamMemberData[]> {
+    const members: GitHubTeamMemberData[] = [];
+
+    let page = 1;
+
+    while (true) {
+      const response =
+        await this.request<GitHubTeamMemberData[]>(
+          `/orgs/${encodeURIComponent(
+            organizationLogin,
+          )}/teams/${encodeURIComponent(
+            teamSlug,
+          )}/members?per_page=100&page=${page}`,
+          {
+            headers: {
+              Authorization: `Bearer ${installationToken}`,
+            },
+          },
+        );
+
+      members.push(...response);
+
+      if (response.length < 100) {
+        break;
+      }
+
+      page++;
+    }
+
+    return members;
+  }
 }

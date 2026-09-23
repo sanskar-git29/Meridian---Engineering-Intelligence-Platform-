@@ -1,12 +1,15 @@
 import { Router } from "express";
 
 import authMiddleware from "../middleware/auth.middleware.js";
-import {requireRole} from "../middleware/authorization.middleware.js";
+import { requireRole } from "../middleware/authorization.middleware.js";
 
 import {
   connectGitHubController,
   githubCallbackController,
   getGitHubRepositoriesController,
+  syncGitHubTeamsController,
+  getGitHubMembersController,
+  getGitHubTeamsController,
 } from "../controller/github/github.controller.js";
 
 const router = Router();
@@ -28,6 +31,27 @@ router.get(
   authMiddleware,
   requireRole("OWNER", "ADMIN"),
   getGitHubRepositoriesController,
+);
+
+router.get(
+  "/teams/sync",
+  authMiddleware,
+  requireRole("OWNER", "ADMIN"),
+  syncGitHubTeamsController,
+);
+
+router.get(
+  "/members",
+  authMiddleware,
+  requireRole("OWNER", "ADMIN"),
+  getGitHubMembersController,
+);
+
+router.get(
+  "/teams",
+  authMiddleware,
+  requireRole("OWNER", "ADMIN"),
+  getGitHubTeamsController,
 );
 
 export default router;

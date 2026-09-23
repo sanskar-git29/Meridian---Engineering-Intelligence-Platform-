@@ -6,13 +6,14 @@ import { ApiError } from "../../utility/apiError.js";
 
 import {
   connectGitHubService,
+  getGitHubMembers,
+  getGitHubTeams,
   githubCallbackService,
   syncGitHubRepositories,
+  syncGitHubTeamsAndUsers,
 } from "./github.services.js";
 
 import { GitHubCallbackSchema } from "./gtihub.schema.js";
-
-
 
 export const connectGitHubController: RequestHandler =
   asyncHandler(async (req, res) => {
@@ -36,8 +37,11 @@ export const connectGitHubController: RequestHandler =
 
 export const githubCallbackController: RequestHandler =
   asyncHandler(async (req, res) => {
-    const { code, state, installation_id } =
-      GitHubCallbackSchema.parse(req.query);
+    const {
+      code,
+      state,
+      installation_id,
+    } = GitHubCallbackSchema.parse(req.query);
 
     const result = await githubCallbackService(
       code,
@@ -54,7 +58,7 @@ export const githubCallbackController: RequestHandler =
     );
   });
 
-  export const getGitHubRepositoriesController: RequestHandler =
+export const getGitHubRepositoriesController: RequestHandler =
   asyncHandler(async (req, res) => {
     if (!req.user) {
       throw ApiError.unauthorized();
@@ -70,6 +74,66 @@ export const githubCallbackController: RequestHandler =
         200,
         "GitHub repositories synchronized successfully",
         repositories,
+      ),
+    );
+  });
+
+export const syncGitHubTeamsController: RequestHandler =
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw ApiError.unauthorized();
+    }
+
+    const data =
+      await syncGitHubTeamsAndUsers(
+        req.user.organizationId,
+      );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "GitHub teams and users synchronized successfully",
+        data,
+      ),
+    );
+  });
+
+export const getGitHubMembersController: RequestHandler =
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw ApiError.unauthorized();
+    }
+
+    const members =
+      await getGitHubMembers(
+        req.user.organizationId,
+      );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "GitHub members retrieved successfully",
+        members,
+      ),
+    );
+  });
+
+export const getGitHubTeamsController: RequestHandler =
+  asyncHandler(async (req, res) => {
+    if (!req.user) {
+      throw ApiError.unauthorized();
+    }
+
+    const teams =
+      await getGitHubTeams(
+        req.user.organizationId,
+      );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "GitHub teams retrieved successfully",
+        teams,
       ),
     );
   });
