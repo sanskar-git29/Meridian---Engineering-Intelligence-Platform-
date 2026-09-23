@@ -11,6 +11,8 @@ import type {
   GitHubUserData,
   GitHubTeamData,
   GitHubTeamMemberData,
+  GitHubTeamRepositoryData,
+  
 } from "./github.type.js";
 
 export class GitHubProvider {
@@ -358,4 +360,43 @@ export class GitHubProvider {
 
     return members;
   }
+
+  async getTeamRepositories(
+  installationToken: string,
+  organizationLogin: string,
+  teamSlug: string,
+): Promise<GitHubTeamRepositoryData[]> {
+  const repositories: GitHubTeamRepositoryData[] = [];
+
+  let page = 1;
+
+  while (true) {
+    const response =
+      await this.request<GitHubTeamRepositoryData[]>(
+        `/orgs/${encodeURIComponent(
+          organizationLogin,
+        )}/teams/${encodeURIComponent(
+          teamSlug,
+        )}/repos?per_page=100&page=${page}`,
+        {
+          headers: {
+            Authorization:
+              `Bearer ${installationToken}`,
+          },
+        },
+      );
+
+    repositories.push(...response);
+
+    if (response.length < 100) {
+      break;
+    }
+
+    page++;
+  }
+
+  return repositories;
+}
+
+  
 }

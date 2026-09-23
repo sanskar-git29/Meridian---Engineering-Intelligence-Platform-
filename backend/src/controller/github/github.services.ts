@@ -18,12 +18,11 @@ export async function connectGitHubService(
   organizationId: string,
   userId: string,
 ) {
-  const existingInstallation =
-    await prisma.gitHubInstallation.findUnique({
-      where: {
-        organizationId,
-      },
-    });
+  const existingInstallation = await prisma.gitHubInstallation.findUnique({
+    where: {
+      organizationId,
+    },
+  });
 
   if (existingInstallation) {
     throw ApiError.conflict(
@@ -32,13 +31,9 @@ export async function connectGitHubService(
     );
   }
 
-  const state = await createGitHubOAuthState(
-    organizationId,
-    userId,
-  );
+  const state = await createGitHubOAuthState(organizationId, userId);
 
-  const authorizationUrl =
-    githubProvider.getAuthorizationUrl(state);
+  const authorizationUrl = githubProvider.getAuthorizationUrl(state);
 
   return {
     authorizationUrl,
@@ -50,8 +45,7 @@ export async function githubCallbackService(
   state: string,
   installationId: number,
 ) {
-  const oauthState =
-    await consumeGitHubOAuthState(state);
+  const oauthState = await consumeGitHubOAuthState(state);
 
   if (!oauthState) {
     throw ApiError.badRequest(
@@ -60,21 +54,14 @@ export async function githubCallbackService(
     );
   }
 
-  const userToken =
-    await githubProvider.exchangeCodeForUserToken(
-      code,
-    );
+  const userToken = await githubProvider.exchangeCodeForUserToken(code);
 
   const userInstallations =
-    await githubProvider.getUserInstallations(
-      userToken,
-    );
+    await githubProvider.getUserInstallations(userToken);
 
-  const authorizedInstallation =
-    userInstallations.installations.find(
-      (installation) =>
-        installation.id === installationId,
-    );
+  const authorizedInstallation = userInstallations.installations.find(
+    (installation) => installation.id === installationId,
+  );
 
   if (!authorizedInstallation) {
     throw ApiError.forbidden(
@@ -83,28 +70,19 @@ export async function githubCallbackService(
     );
   }
 
-  const installation =
-    await githubProvider.getInstallation(
-      installationId,
-    );
+  const installation = await githubProvider.getInstallation(installationId);
 
-  if (
-    installation.account.type !==
-    "Organization"
-  ) {
+  if (installation.account.type !== "Organization") {
     throw ApiError.badRequest(
       "GitHub installation must belong to an organization",
       "GITHUB_INVALID_ACCOUNT",
     );
   }
 
-  const repository =
-    new GitHubRepository(prisma);
+  const repository = new GitHubRepository(prisma);
 
   const existingGitHubInstallation =
-    await repository.findByGitHubInstallationId(
-      installationId,
-    );
+    await repository.findByGitHubInstallationId(installationId);
 
   if (existingGitHubInstallation) {
     throw ApiError.conflict(
@@ -114,22 +92,19 @@ export async function githubCallbackService(
   }
 
   return prisma.$transaction(async (tx) => {
-    const transactionRepository =
-      new GitHubRepository(tx);
+    const transactionRepository = new GitHubRepository(tx);
 
-    const integration =
-      await transactionRepository.createIntegration(
-        oauthState.organizationId,
-      );
+    const integration = await transactionRepository.createIntegration(
+      oauthState.organizationId,
+    );
 
-    const githubInstallation =
-      await transactionRepository.createInstallation(
-        oauthState.organizationId,
-        integration.id,
-        installation.id,
-        installation.account.id,
-        installation.account.login,
-      );
+    const githubInstallation = await transactionRepository.createInstallation(
+      oauthState.organizationId,
+      integration.id,
+      installation.id,
+      installation.account.id,
+      installation.account.login,
+    );
 
     return {
       integration,
@@ -138,37 +113,25 @@ export async function githubCallbackService(
   });
 }
 
-export async function syncGitHubRepositories(
-  organizationId: string,
-) {
-  const repository =
-    new GitHubRepository(prisma);
+export async function syncGitHubRepositories(organizationId: string) {
+  const repository = new GitHubRepository(prisma);
 
-  const installation =
-    await repository.findInstallation(
-      organizationId,
-    );
+  const installation = await repository.findInstallation(organizationId);
 
   if (!installation) {
-    throw ApiError.notFound(
-      "GitHub is not connected",
-      "GITHUB_NOT_CONNECTED",
-    );
+    throw ApiError.notFound("GitHub is not connected", "GITHUB_NOT_CONNECTED");
   }
 
-  const installationToken =
-    await githubProvider.createInstallationToken(
-      installation.githubInstallationId,
-    );
+  const installationToken = await githubProvider.createInstallationToken(
+    installation.githubInstallationId,
+  );
 
-  const githubRepositories =
-    await githubProvider.getInstallationRepositories(
-      installationToken.token,
-    );
+  const githubRepositories = await githubProvider.getInstallationRepositories(
+    installationToken.token,
+  );
 
   await prisma.$transaction(async (tx) => {
-    const transactionRepository =
-      new GitHubRepository(tx);
+    const transactionRepository = new GitHubRepository(tx);
 
     for (const githubRepository of githubRepositories) {
       await transactionRepository.upsertRepository(
@@ -181,78 +144,80 @@ export async function syncGitHubRepositories(
     await transactionRepository.deactivateRepositoriesNotIn(
       organizationId,
       installation.id,
-      githubRepositories.map(
-        (githubRepository) =>
-          githubRepository.id,
-      ),
+      githubRepositories.map((githubRepository) => githubRepository.id),
     );
   });
 
-  const repositories =
-    await repository.findRepositories(
-      organizationId,
-    );
+  const repositories = await repository.findRepositories(organizationId);
 
   return repositories.map((repository) => ({
     ...repository,
 
-    githubRepositoryId:
-      repository.githubRepositoryId.toString(),
+    githubRepositoryId: repository.githubRepositoryId.toString(),
   }));
 }
 
-export async function syncGitHubTeamsAndUsers(
-  organizationId: string,
-) {
-  const repository =
-    new GitHubRepository(prisma);
+export async function syncGitHubTeamsAndUsers(organizationId: string) {
+  const repository = new GitHubRepository(prisma);
 
-  const installation =
-    await repository.findInstallation(
-      organizationId,
-    );
+  const installation = await repository.findInstallation(organizationId);
 
   if (!installation) {
-    throw ApiError.notFound(
-      "GitHub is not connected",
-      "GITHUB_NOT_CONNECTED",
-    );
+    throw ApiError.notFound("GitHub is not connected", "GITHUB_NOT_CONNECTED");
   }
 
-  const installationToken =
-    await githubProvider.createInstallationToken(
-      installation.githubInstallationId,
-    );
+  const installationToken = await githubProvider.createInstallationToken(
+    installation.githubInstallationId,
+  );
 
-  const [githubUsers, githubTeams] =
-    await Promise.all([
-      githubProvider.getOrganizationMembers(
+  const [githubUsers, githubTeams] = await Promise.all([
+    githubProvider.getOrganizationMembers(
+      installationToken.token,
+      installation.githubOrganizationLogin,
+    ),
+
+    githubProvider.getOrganizationTeams(
+      installationToken.token,
+      installation.githubOrganizationLogin,
+    ),
+  ]);
+
+  /*
+   * Fetch team members
+   */
+  const teamMembers = await Promise.all(
+    githubTeams.map(async (team) => ({
+      team,
+
+      members: await githubProvider.getTeamMembers(
         installationToken.token,
         installation.githubOrganizationLogin,
+        team.slug,
       ),
+    })),
+  );
 
-      githubProvider.getOrganizationTeams(
+  /*
+   * Fetch team repositories
+   * and their permissions
+   */
+  const teamRepositories = await Promise.all(
+    githubTeams.map(async (team) => ({
+      team,
+
+      repositories: await githubProvider.getTeamRepositories(
         installationToken.token,
         installation.githubOrganizationLogin,
+        team.slug,
       ),
-    ]);
+    })),
+  );
 
-  const teamMembers =
-    await Promise.all(
-      githubTeams.map(async (team) => ({
-        team,
-
-        members:
-          await githubProvider.getTeamMembers(
-            installationToken.token,
-            installation.githubOrganizationLogin,
-            team.slug,
-          ),
-      })),
-    );
-
-  const usersById =
-    new Map<number, GitHubUserData>();
+  /*
+   * Merge organization users and
+   * team-only users.
+   */
+  const usersById = new Map<number, GitHubUserData>();
 
   for (const user of githubUsers) {
     usersById.set(user.id, user);
@@ -274,27 +239,21 @@ export async function syncGitHubTeamsAndUsers(
   }
 
   await prisma.$transaction(async (tx) => {
-    const transactionRepository =
-      new GitHubRepository(tx);
+    const transactionRepository = new GitHubRepository(tx);
 
     /*
      * Sync users
      */
-    const localUsers =
-      new Map<number, string>();
+    const localUsers = new Map<number, string>();
 
     for (const user of usersById.values()) {
-      const localUser =
-        await transactionRepository.upsertUser(
-          organizationId,
-          installation.id,
-          user,
-        );
-
-      localUsers.set(
-        user.id,
-        localUser.id,
+      const localUser = await transactionRepository.upsertUser(
+        organizationId,
+        installation.id,
+        user,
       );
+
+      localUsers.set(user.id, localUser.id);
     }
 
     await transactionRepository.deactivateUsersNotIn(
@@ -306,37 +265,29 @@ export async function syncGitHubTeamsAndUsers(
     /*
      * Sync teams
      */
-    const localTeams =
-      new Map<number, string>();
+    const localTeams = new Map<number, string>();
 
     for (const team of githubTeams) {
-      const localTeam =
-        await transactionRepository.upsertTeam(
-          organizationId,
-          installation.id,
-          team,
-        );
-
-      localTeams.set(
-        team.id,
-        localTeam.id,
+      const localTeam = await transactionRepository.upsertTeam(
+        organizationId,
+        installation.id,
+        team,
       );
+
+      localTeams.set(team.id, localTeam.id);
     }
 
     await transactionRepository.deactivateTeamsNotIn(
       organizationId,
       installation.id,
-      githubTeams.map(
-        (team) => team.id,
-      ),
+      githubTeams.map((team) => team.id),
     );
 
     /*
      * Sync team memberships
      */
     for (const { team, members } of teamMembers) {
-      const localTeamId =
-        localTeams.get(team.id);
+      const localTeamId = localTeams.get(team.id);
 
       if (!localTeamId) {
         continue;
@@ -345,8 +296,7 @@ export async function syncGitHubTeamsAndUsers(
       const activeLocalUserIds: string[] = [];
 
       for (const member of members) {
-        const localUserId =
-          localUsers.get(member.id);
+        const localUserId = localUsers.get(member.id);
 
         if (!localUserId) {
           continue;
@@ -359,14 +309,63 @@ export async function syncGitHubTeamsAndUsers(
           member.inherited,
         );
 
-        activeLocalUserIds.push(
-          localUserId,
-        );
+        activeLocalUserIds.push(localUserId);
       }
 
       await transactionRepository.deactivateTeamMembershipsNotIn(
         localTeamId,
         activeLocalUserIds,
+      );
+    }
+
+    /*
+     * Sync team repository permissions
+     */
+    for (const { team, repositories } of teamRepositories) {
+      const localTeamId = localTeams.get(team.id);
+
+      if (!localTeamId) {
+        continue;
+      }
+
+      const activeRepositoryIds: string[] = [];
+
+      for (const githubRepository of repositories) {
+        const localRepository =
+  await transactionRepository
+    .findRepositoryByGithubId(
+      installation.id,
+      githubRepository.id,
+    );
+
+        if (!localRepository) {
+          continue;
+        }
+
+        let permission = "pull";
+
+        if (githubRepository.permissions?.admin) {
+          permission = "admin";
+        } else if (githubRepository.permissions?.maintain) {
+          permission = "maintain";
+        } else if (githubRepository.permissions?.push) {
+          permission = "push";
+        } else if (githubRepository.permissions?.triage) {
+          permission = "triage";
+        }
+
+        await transactionRepository.upsertTeamRepositoryPermission(
+          localTeamId,
+          localRepository.id,
+          permission,
+        );
+
+        activeRepositoryIds.push(localRepository.id);
+      }
+
+      await transactionRepository.deactivateTeamRepositoryPermissionsNotIn(
+        localTeamId,
+        activeRepositoryIds,
       );
     }
 
@@ -378,39 +377,36 @@ export async function syncGitHubTeamsAndUsers(
       organizationId,
       installation.id,
     );
+
+    /*
+     * Deactivate repository permissions
+     * belonging to inactive teams.
+     */
+    await transactionRepository.deactivatePermissionsForInactiveTeams(
+      organizationId,
+      installation.id,
+    );
   });
 
   /*
    * Read synchronized data.
    */
-  const [users, teams] =
-    await Promise.all([
-      repository.findActiveUsers(
-        organizationId,
-      ),
+  const [users, teams] = await Promise.all([
+    repository.findActiveUsers(organizationId),
 
-      repository.findActiveTeams(
-        organizationId,
-      ),
-    ]);
+    repository.findActiveTeams(organizationId),
+  ]);
 
   /*
-   * IMPORTANT:
    * Do not spread Prisma objects here.
-   *
-   * Prisma BigInt values cannot be serialized
-   * by JSON.stringify().
+   * Convert BigInt values explicitly.
    */
-
   return {
     users: users.map((user) => ({
       id: user.id,
-      organizationId:
-        user.organizationId,
-      githubInstallationId:
-        user.githubInstallationId,
-      githubUserId:
-        user.githubUserId.toString(),
+      organizationId: user.organizationId,
+      githubInstallationId: user.githubInstallationId,
+      githubUserId: user.githubUserId.toString(),
       login: user.login,
       avatarUrl: user.avatarUrl,
       htmlUrl: user.htmlUrl,
@@ -423,12 +419,9 @@ export async function syncGitHubTeamsAndUsers(
 
     teams: teams.map((team) => ({
       id: team.id,
-      organizationId:
-        team.organizationId,
-      githubInstallationId:
-        team.githubInstallationId,
-      githubTeamId:
-        team.githubTeamId.toString(),
+      organizationId: team.organizationId,
+      githubInstallationId: team.githubInstallationId,
+      githubTeamId: team.githubTeamId.toString(),
       name: team.name,
       slug: team.slug,
       description: team.description,
@@ -439,7 +432,141 @@ export async function syncGitHubTeamsAndUsers(
       createdAt: team.createdAt,
       updatedAt: team.updatedAt,
 
-      members: team.memberships.map(
+      members: team.memberships.map((membership) => ({
+        id: membership.githubUser.id,
+
+        githubUserId: membership.githubUser.githubUserId.toString(),
+
+        login: membership.githubUser.login,
+
+        avatarUrl: membership.githubUser.avatarUrl,
+
+        htmlUrl: membership.githubUser.htmlUrl,
+
+        role: membership.role,
+
+        isInherited: membership.isInherited,
+      })),
+
+      repositories: team.repositoryPermissions.map((permission) => ({
+        id: permission.repository.id,
+
+        githubRepositoryId: permission.repository.githubRepositoryId.toString(),
+
+        name: permission.repository.name,
+
+        fullName: permission.repository.fullName,
+
+        private: permission.repository.private,
+
+        defaultBranch: permission.repository.defaultBranch,
+
+        htmlUrl: permission.repository.htmlUrl,
+
+        permission: permission.permission,
+
+        isActive: permission.isActive,
+      })),
+    })),
+  };
+}
+
+export async function getGitHubMembers(organizationId: string) {
+  const repository = new GitHubRepository(prisma);
+
+  const members = await repository.findActiveUsers(organizationId);
+
+  return members.map((member) => ({
+  id: member.id,
+
+  organizationId:
+    member.organizationId,
+
+  githubInstallationId:
+    member.githubInstallationId,
+
+  githubUserId:
+    member.githubUserId.toString(),
+
+  login:
+    member.login,
+
+  avatarUrl:
+    member.avatarUrl,
+
+  htmlUrl:
+    member.htmlUrl,
+
+  type:
+    member.type,
+
+  siteAdmin:
+    member.siteAdmin,
+
+  isActive:
+    member.isActive,
+
+  createdAt:
+    member.createdAt,
+
+  updatedAt:
+    member.updatedAt,
+}));
+}
+
+
+export async function getGitHubTeams(
+  organizationId: string,
+) {
+  const repository =
+    new GitHubRepository(prisma);
+
+  const teams =
+    await repository.findActiveTeams(
+      organizationId,
+    );
+
+  return teams.map((team) => ({
+    id: team.id,
+
+    organizationId:
+      team.organizationId,
+
+    githubInstallationId:
+      team.githubInstallationId,
+
+    githubTeamId:
+      team.githubTeamId.toString(),
+
+    name:
+      team.name,
+
+    slug:
+      team.slug,
+
+    description:
+      team.description,
+
+    privacy:
+      team.privacy,
+
+    permission:
+      team.permission,
+
+    htmlUrl:
+      team.htmlUrl,
+
+    isActive:
+      team.isActive,
+
+    createdAt:
+      team.createdAt,
+
+    updatedAt:
+      team.updatedAt,
+
+    members:
+      team.memberships.map(
         (membership) => ({
           id:
             membership.githubUser.id,
@@ -463,62 +590,37 @@ export async function syncGitHubTeamsAndUsers(
             membership.isInherited,
         }),
       ),
-    })),
-  };
-}
 
-export async function getGitHubMembers(
-  organizationId: string,
-) {
-  const repository =
-    new GitHubRepository(prisma);
+    repositories:
+      team.repositoryPermissions.map(
+        (permission) => ({
+          id:
+            permission.repository.id,
 
-  const members =
-    await repository.findActiveUsers(
-      organizationId,
-    );
+          githubRepositoryId:
+            permission.repository.githubRepositoryId.toString(),
 
-  return members.map((member) => ({
-    ...member,
+          name:
+            permission.repository.name,
 
-    githubUserId:
-      member.githubUserId.toString(),
-  }));
-}
+          fullName:
+            permission.repository.fullName,
 
-export async function getGitHubTeams(
-  organizationId: string,
-) {
-  const repository =
-    new GitHubRepository(prisma);
+          private:
+            permission.repository.private,
 
-  const teams =
-    await repository.findActiveTeams(
-      organizationId,
-    );
+          defaultBranch:
+            permission.repository.defaultBranch,
 
-  return teams.map((team) => ({
-    ...team,
+          htmlUrl:
+            permission.repository.htmlUrl,
 
-    githubTeamId:
-      team.githubTeamId.toString(),
+          permission:
+            permission.permission,
 
-    members: team.memberships.map(
-      (membership) => ({
-        id: membership.githubUser.id,
-
-        githubUserId:
-          membership.githubUser.githubUserId.toString(),
-
-        login:
-          membership.githubUser.login,
-
-        role:
-          membership.role,
-
-        isInherited:
-          membership.isInherited,
-      }),
-    ),
+          isActive:
+            permission.isActive,
+        }),
+      ),
   }));
 }

@@ -13,6 +13,21 @@ export interface GitHubInstallationToken {
   expiresAt: Date;
 }
 
+export interface GitHubTeamRepositoryData {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  default_branch: string | null;
+  html_url: string;
+  permissions?: {
+    admin: boolean;
+    push: boolean;
+    pull: boolean;
+    maintain?: boolean;
+    triage?: boolean;
+  };
+}
 export interface GitHubRepositoryData {
   id: number;
   name: string;
@@ -29,6 +44,22 @@ export interface GitHubUserData {
   html_url: string;
   type: string;
   site_admin: boolean;
+}
+export interface GitHubTeamRepositoryData {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  default_branch: string | null;
+  html_url: string;
+
+  permissions?: {
+    admin: boolean;
+    push: boolean;
+    pull: boolean;
+    maintain?: boolean;
+    triage?: boolean;
+  };
 }
 
 export interface GitHubTeamData {

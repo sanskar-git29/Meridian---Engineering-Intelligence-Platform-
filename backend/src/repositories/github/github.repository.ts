@@ -8,9 +8,7 @@ import type {
 
 type DbClient =
   | PrismaClient
-  | Parameters<
-      Parameters<PrismaClient["$transaction"]>[0]
-    >[0];
+  | Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
 
 export class GitHubRepository {
   constructor(private readonly db: DbClient) {}
@@ -52,9 +50,7 @@ export class GitHubRepository {
     });
   }
 
-  async findByGitHubInstallationId(
-    githubInstallationId: number,
-  ) {
+  async findByGitHubInstallationId(githubInstallationId: number) {
     return this.db.gitHubInstallation.findFirst({
       where: {
         githubInstallationId,
@@ -62,197 +58,192 @@ export class GitHubRepository {
     });
   }
   async upsertUser(
-  organizationId: string,
-  githubInstallationId: string,
-  user: GitHubUserData,
-) {
-  return this.db.gitHubUser.upsert({
-    where: {
-      githubInstallationId_githubUserId: {
+    organizationId: string,
+    githubInstallationId: string,
+    user: GitHubUserData,
+  ) {
+    return this.db.gitHubUser.upsert({
+      where: {
+        githubInstallationId_githubUserId: {
+          githubInstallationId,
+          githubUserId: BigInt(user.id),
+        },
+      },
+
+      create: {
+        organizationId,
         githubInstallationId,
         githubUserId: BigInt(user.id),
+        login: user.login,
+        avatarUrl: user.avatar_url,
+        htmlUrl: user.html_url,
+        type: user.type,
+        siteAdmin: user.site_admin,
+        isActive: true,
       },
-    },
 
-    create: {
-      organizationId,
-      githubInstallationId,
-      githubUserId: BigInt(user.id),
-      login: user.login,
-      avatarUrl: user.avatar_url,
-      htmlUrl: user.html_url,
-      type: user.type,
-      siteAdmin: user.site_admin,
-      isActive: true,
-    },
+      update: {
+        organizationId,
+        login: user.login,
+        avatarUrl: user.avatar_url,
+        htmlUrl: user.html_url,
+        type: user.type,
+        siteAdmin: user.site_admin,
+        isActive: true,
+      },
+    });
+  }
 
-    update: {
-      organizationId,
-      login: user.login,
-      avatarUrl: user.avatar_url,
-      htmlUrl: user.html_url,
-      type: user.type,
-      siteAdmin: user.site_admin,
-      isActive: true,
-    },
-  });
-}
+  async upsertTeam(
+    organizationId: string,
+    githubInstallationId: string,
+    team: GitHubTeamData,
+  ) {
+    return this.db.gitHubTeam.upsert({
+      where: {
+        githubInstallationId_githubTeamId: {
+          githubInstallationId,
+          githubTeamId: BigInt(team.id),
+        },
+      },
 
-async upsertTeam(
-  organizationId: string,
-  githubInstallationId: string,
-  team: GitHubTeamData,
-) {
-  return this.db.gitHubTeam.upsert({
-    where: {
-      githubInstallationId_githubTeamId: {
+      create: {
+        organizationId,
         githubInstallationId,
         githubTeamId: BigInt(team.id),
+        name: team.name,
+        slug: team.slug,
+        description: team.description,
+        privacy: team.privacy,
+        permission: team.permission,
+        htmlUrl: team.html_url,
+        isActive: true,
       },
-    },
 
-    create: {
-      organizationId,
-      githubInstallationId,
-      githubTeamId: BigInt(team.id),
-      name: team.name,
-      slug: team.slug,
-      description: team.description,
-      privacy: team.privacy,
-      permission: team.permission,
-      htmlUrl: team.html_url,
-      isActive: true,
-    },
+      update: {
+        organizationId,
+        name: team.name,
+        slug: team.slug,
+        description: team.description,
+        privacy: team.privacy,
+        permission: team.permission,
+        htmlUrl: team.html_url,
+        isActive: true,
+      },
+    });
+  }
 
-    update: {
-      organizationId,
-      name: team.name,
-      slug: team.slug,
-      description: team.description,
-      privacy: team.privacy,
-      permission: team.permission,
-      htmlUrl: team.html_url,
-      isActive: true,
-    },
-  });
-}
+  async upsertTeamMembership(
+    teamId: string,
+    githubUserId: string,
+    role: string,
+    isInherited: boolean,
+  ) {
+    return this.db.gitHubTeamMembership.upsert({
+      where: {
+        teamId_githubUserId: {
+          teamId,
+          githubUserId,
+        },
+      },
 
-async upsertTeamMembership(
-  teamId: string,
-  githubUserId: string,
-  role: string,
-  isInherited: boolean,
-) {
-  return this.db.gitHubTeamMembership.upsert({
-    where: {
-      teamId_githubUserId: {
+      create: {
         teamId,
         githubUserId,
+        role,
+        isInherited,
+        isActive: true,
       },
-    },
 
-    create: {
-      teamId,
-      githubUserId,
-      role,
-      isInherited,
-      isActive: true,
-    },
+      update: {
+        role,
+        isInherited,
+        isActive: true,
+      },
+    });
+  }
 
-    update: {
-      role,
-      isInherited,
-      isActive: true,
-    },
-  });
-}
+  async deactivateUsersNotIn(
+    organizationId: string,
+    githubInstallationId: string,
+    githubUserIds: number[],
+  ) {
+    return this.db.gitHubUser.updateMany({
+      where: {
+        organizationId,
+        githubInstallationId,
+        isActive: true,
 
-async deactivateUsersNotIn(
-  organizationId: string,
-  githubInstallationId: string,
-  githubUserIds: number[],
-) {
-  return this.db.gitHubUser.updateMany({
-    where: {
-      organizationId,
-      githubInstallationId,
-      isActive: true,
+        ...(githubUserIds.length
+          ? {
+              githubUserId: {
+                notIn: githubUserIds.map((id) => BigInt(id)),
+              },
+            }
+          : {}),
+      },
 
-      ...(githubUserIds.length
-        ? {
-            githubUserId: {
-              notIn: githubUserIds.map(
-                (id) => BigInt(id),
-              ),
-            },
-          }
-        : {}),
-    },
+      data: {
+        isActive: false,
+      },
+    });
+  }
 
-    data: {
-      isActive: false,
-    },
-  });
-}
+  async deactivateTeamsNotIn(
+    organizationId: string,
+    githubInstallationId: string,
+    githubTeamIds: number[],
+  ) {
+    return this.db.gitHubTeam.updateMany({
+      where: {
+        organizationId,
+        githubInstallationId,
+        isActive: true,
 
-async deactivateTeamsNotIn(
-  organizationId: string,
-  githubInstallationId: string,
-  githubTeamIds: number[],
-) {
-  return this.db.gitHubTeam.updateMany({
-    where: {
-      organizationId,
-      githubInstallationId,
-      isActive: true,
+        ...(githubTeamIds.length
+          ? {
+              githubTeamId: {
+                notIn: githubTeamIds.map((id) => BigInt(id)),
+              },
+            }
+          : {}),
+      },
 
-      ...(githubTeamIds.length
-        ? {
-            githubTeamId: {
-              notIn: githubTeamIds.map(
-                (id) => BigInt(id),
-              ),
-            },
-          }
-        : {}),
-    },
+      data: {
+        isActive: false,
+      },
+    });
+  }
 
-    data: {
-      isActive: false,
-    },
-  });
-}
+  async deactivateTeamMembershipsNotIn(
+    teamId: string,
+    githubUserIds: string[],
+  ) {
+    return this.db.gitHubTeamMembership.updateMany({
+      where: {
+        teamId,
+        isActive: true,
 
-async deactivateTeamMembershipsNotIn(
-  teamId: string,
-  githubUserIds: string[],
-) {
-  return this.db.gitHubTeamMembership.updateMany({
-    where: {
-      teamId,
-      isActive: true,
+        ...(githubUserIds.length
+          ? {
+              githubUserId: {
+                notIn: githubUserIds,
+              },
+            }
+          : {}),
+      },
 
-      ...(githubUserIds.length
-        ? {
-            githubUserId: {
-              notIn: githubUserIds,
-            },
-          }
-        : {}),
-    },
+      data: {
+        isActive: false,
+      },
+    });
+  }
 
-    data: {
-      isActive: false,
-    },
-  });
-}
-
-async deactivateMembershipsForInactiveTeams(
-  organizationId: string,
-  githubInstallationId: string,
-) {
-  const inactiveTeams =
-    await this.db.gitHubTeam.findMany({
+  async deactivateMembershipsForInactiveTeams(
+    organizationId: string,
+    githubInstallationId: string,
+  ) {
+    const inactiveTeams = await this.db.gitHubTeam.findMany({
       where: {
         organizationId,
         githubInstallationId,
@@ -264,78 +255,85 @@ async deactivateMembershipsForInactiveTeams(
       },
     });
 
-  if (!inactiveTeams.length) {
-    return {
-      count: 0,
-    };
+    if (!inactiveTeams.length) {
+      return {
+        count: 0,
+      };
+    }
+
+    return this.db.gitHubTeamMembership.updateMany({
+      where: {
+        teamId: {
+          in: inactiveTeams.map((team) => team.id),
+        },
+        isActive: true,
+      },
+
+      data: {
+        isActive: false,
+      },
+    });
   }
 
-  return this.db.gitHubTeamMembership.updateMany({
-    where: {
-      teamId: {
-        in: inactiveTeams.map(
-          (team) => team.id,
-        ),
+  async findActiveUsers(organizationId: string) {
+    return this.db.gitHubUser.findMany({
+      where: {
+        organizationId,
+        isActive: true,
       },
-      isActive: true,
-    },
 
-    data: {
-      isActive: false,
-    },
-  });
-}
+      orderBy: {
+        login: "asc",
+      },
+    });
+  }
 
-async findActiveUsers(
-  organizationId: string,
-) {
-  return this.db.gitHubUser.findMany({
-    where: {
-      organizationId,
-      isActive: true,
-    },
+  async findActiveTeams(organizationId: string) {
+    return this.db.gitHubTeam.findMany({
+      where: {
+        organizationId,
+        isActive: true,
+      },
 
-    orderBy: {
-      login: "asc",
-    },
-  });
-}
+      orderBy: {
+        name: "asc",
+      },
 
-async findActiveTeams(
-  organizationId: string,
-) {
-  return this.db.gitHubTeam.findMany({
-    where: {
-      organizationId,
-      isActive: true,
-    },
-
-    orderBy: {
-      name: "asc",
-    },
-
-    include: {
-      memberships: {
-        where: {
-          isActive: true,
-          githubUser: {
+      include: {
+        memberships: {
+          where: {
             isActive: true,
+            githubUser: {
+              isActive: true,
+            },
+          },
+
+          include: {
+            githubUser: true,
+          },
+
+          orderBy: {
+            githubUser: {
+              login: "asc",
+            },
           },
         },
 
-        include: {
-          githubUser: true,
-        },
+        repositoryPermissions: {
+          where: {
+            isActive: true,
+            repository: {
+              isActive: true,
+            },
+          },
 
-        orderBy: {
-          githubUser: {
-            login: "asc",
+          include: {
+            repository: true,
           },
         },
       },
-    },
-  });
-}
+    });
+  }
 
   async upsertRepository(
     organizationId: string,
@@ -404,7 +402,19 @@ async findActiveTeams(
       },
     });
   }
-
+  async findRepositoryByGithubId(
+    githubInstallationId: string,
+    githubRepositoryId: number | bigint,
+  ) {
+    return this.db.gitHubRepository.findFirst({
+      where: {
+        githubInstallationId,
+        githubRepositoryId: BigInt(githubRepositoryId),
+        isActive: true,
+      },
+    });
+  }
+  
   async findRepositories(organizationId: string) {
     return this.db.gitHubRepository.findMany({
       where: {
@@ -413,6 +423,83 @@ async findActiveTeams(
       },
       orderBy: {
         name: "asc",
+      },
+    });
+  }
+
+  async upsertTeamRepositoryPermission(
+    teamId: string,
+    repositoryId: string,
+    permission: string,
+  ) {
+    return this.db.gitHubTeamRepository.upsert({
+      where: {
+        teamId_repositoryId: {
+          teamId,
+          repositoryId,
+        },
+      },
+      create: {
+        teamId,
+        repositoryId,
+        permission,
+        isActive: true,
+      },
+      update: {
+        permission,
+        isActive: true,
+      },
+    });
+  }
+  async deactivateTeamRepositoryPermissionsNotIn(
+    teamId: string,
+    repositoryIds: string[],
+  ) {
+    return this.db.gitHubTeamRepository.updateMany({
+      where: {
+        teamId,
+        isActive: true,
+        ...(repositoryIds.length
+          ? {
+              repositoryId: {
+                notIn: repositoryIds,
+              },
+            }
+          : {}),
+      },
+      data: {
+        isActive: false,
+      },
+    });
+  }
+  async deactivatePermissionsForInactiveTeams(
+    organizationId: string,
+    githubInstallationId: string,
+  ) {
+    const inactiveTeams = await this.db.gitHubTeam.findMany({
+      where: {
+        organizationId,
+        githubInstallationId,
+        isActive: false,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!inactiveTeams.length) {
+      return { count: 0 };
+    }
+
+    return this.db.gitHubTeamRepository.updateMany({
+      where: {
+        teamId: {
+          in: inactiveTeams.map((team) => team.id),
+        },
+        isActive: true,
+      },
+      data: {
+        isActive: false,
       },
     });
   }
