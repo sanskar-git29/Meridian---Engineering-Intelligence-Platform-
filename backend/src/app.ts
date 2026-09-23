@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import costRouter from "./routes/cost.router.js";
 import testRlsRouter from  "./test/testRls.js"
+import githubRouter from "./routes/github.router.js";
 
 import { env } from "./config/env.js";
 import authRouter from './routes/auth.router.js'
@@ -29,5 +30,6 @@ app.use("/api/auth", authRouter);
 
 app.use("/api/test", testRlsRouter);
 app.use("/api/costs", costRouter);
+app.use("/api/github", githubRouter);
 
 export default app;

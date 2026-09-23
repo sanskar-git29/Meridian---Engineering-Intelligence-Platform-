@@ -35,16 +35,21 @@ model Membership {
 }
 
 model Organization {
-  id                   String                @id @default(uuid())
-  name                 String
-  slug                 String                @unique
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   memberships          Membership[]
   auditLogs            AuditLog[]
   integrations         Integration[]
+  githubInstallation   GitHubInstallation?
   costRecords          CostRecord[]
   resourceUtilizations ResourceUtilization[]
+  githubRepositories   GitHubRepository[]
+  githubUsers          GitHubUser[]
+  githubTeams          GitHubTeam[]
 }
 
 model RefreshToken {
@@ -55,11 +60,12 @@ model RefreshToken {
   expiresAt      DateTime
   revokedAt      DateTime?
   createdAt      DateTime  @default(now())
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
-  id             String        @id @default(uuid())
+  id             String   @id @default(uuid())
   organizationId String?
   actorId        String?
   action         String
@@ -68,9 +74,10 @@ model AuditLog {
   metadata       Json?
   ipAddress      String?
   userAgent      String?
-  createdAt      DateTime      @default(now())
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  actor          User?         @relation(fields: [actorId], references: [id])
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  actor        User?         @relation(fields: [actorId], references: [id])
 
   @@index([organizationId, createdAt])
   @@index([organizationId, action])
@@ -79,15 +86,17 @@ model AuditLog {
 }
 
 model Integration {
-  id                   String                @id @default(uuid())
-  organizationId       String
-  name                 String
-  provider             IntegrationProvider
-  status               IntegrationStatus
-  config               Json?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  id             String              @id @default(uuid())
+  organizationId String
+  name           String
+  provider       IntegrationProvider
+  status         IntegrationStatus
+  config         Json?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
   organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  githubInstallation   GitHubInstallation?
   costRecords          CostRecord[]
   resourceUtilizations ResourceUtilization[]
 
@@ -96,7 +105,7 @@ model Integration {
 }
 
 model CostRecord {
-  id             String       @id @default(uuid())
+  id             String   @id @default(uuid())
   organizationId String
   integrationId  String
   externalId     String
@@ -108,10 +117,11 @@ model CostRecord {
   currency       String
   date           DateTime
   region         String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
   @@unique([integrationId, externalId])
   @@index([organizationId, date])
@@ -121,7 +131,7 @@ model CostRecord {
 }
 
 model ResourceUtilization {
-  id                 String       @id @default(uuid())
+  id                 String   @id @default(uuid())
   organizationId     String
   integrationId      String
   resourceId         String
@@ -132,15 +142,151 @@ model ResourceUtilization {
   networkUtilization Decimal?
   periodStart        DateTime
   periodEnd          DateTime
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
-  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  integration        Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
   @@unique([integrationId, resourceId, periodStart, periodEnd])
   @@index([organizationId, service])
   @@index([organizationId, resourceType])
   @@index([organizationId, periodStart])
+}
+
+model GitHubInstallation {
+  id                      String             @id @default(uuid())
+  organizationId          String             @unique
+  integrationId           String             @unique
+  githubInstallationId    Int
+  githubOrganizationId    Int
+  githubOrganizationLogin String
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  repositories            GitHubRepository[]
+  users                   GitHubUser[]
+  teams                   GitHubTeam[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration  Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, githubOrganizationId])
+  @@index([githubOrganizationId])
+}
+
+model GitHubUser {
+  id                   String @id @default(uuid())
+  organizationId       String
+  githubInstallationId String
+
+  githubUserId BigInt
+  login        String
+  avatarUrl    String?
+  htmlUrl      String
+  type         String
+  siteAdmin    Boolean @default(false)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  githubInstallation GitHubInstallation     @relation(fields: [githubInstallationId], references: [id], onDelete: Cascade)
+  teamMemberships    GitHubTeamMembership[]
+
+  @@unique([githubInstallationId, githubUserId])
+  @@index([organizationId])
+  @@index([githubInstallationId])
+}
+
+model GitHubTeam {
+  id                   String @id @default(uuid())
+  organizationId       String
+  githubInstallationId String
+
+  githubTeamId BigInt
+  name         String
+  slug         String
+  description  String?
+  privacy      String?
+  permission   String?
+  htmlUrl      String
+
+  isActive Boolean @default(true)
+
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  repositoryPermissions GitHubTeamRepository[]
+
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  githubInstallation GitHubInstallation     @relation(fields: [githubInstallationId], references: [id], onDelete: Cascade)
+  memberships        GitHubTeamMembership[]
+
+  @@unique([githubInstallationId, githubTeamId])
+  @@index([organizationId])
+  @@index([githubInstallationId])
+}
+
+model GitHubTeamMembership {
+  id String @id @default(uuid())
+
+  teamId       String
+  githubUserId String
+
+  role        String
+  isInherited Boolean @default(false)
+  isActive    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team       GitHubTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  githubUser GitHubUser @relation(fields: [githubUserId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, githubUserId])
+  @@index([teamId])
+  @@index([githubUserId])
+}
+
+model GitHubTeamRepository {
+  id           String   @id @default(uuid())
+  teamId       String
+  repositoryId String
+  permission   String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  team       GitHubTeam       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  repository GitHubRepository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, repositoryId])
+  @@index([teamId])
+  @@index([repositoryId])
+}
+
+model GitHubRepository {
+  id                   String   @id @default(uuid())
+  organizationId       String
+  githubInstallationId String
+  githubRepositoryId   BigInt
+  name                 String
+  fullName             String
+  private              Boolean
+  defaultBranch        String?
+  htmlUrl              String
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  teamPermissions    GitHubTeamRepository[]
+  organization       Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  githubInstallation GitHubInstallation     @relation(fields: [githubInstallationId], references: [id], onDelete: Cascade)
+
+  @@unique([githubInstallationId, githubRepositoryId])
+  @@index([organizationId])
+  @@index([githubInstallationId])
 }
 
 enum Role {
@@ -151,6 +297,7 @@ enum Role {
 
 enum IntegrationProvider {
   AWS
+  GITHUB
 }
 
 enum IntegrationStatus {

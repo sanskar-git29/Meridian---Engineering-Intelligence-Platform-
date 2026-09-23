@@ -28,7 +28,8 @@ async function testMockProvider() {
   );
 
   assert.ok(
-    costs.every((cost) => cost.amount > 0)
+    
+    costs.every((cost) => Number(cost.amount) > 0)
   );
 
   assert.ok(
