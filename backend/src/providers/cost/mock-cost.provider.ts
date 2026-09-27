@@ -28,7 +28,7 @@ class MockCostProvider implements CostProvider {
           externalId: `mock-${input.integrationId}-${currentDate.toISOString()}-${serviceName}`,
           date: new Date(currentDate),
           service: serviceName,
-          amount: amount.toFixed(2),
+        amount: Number(amount.toFixed(2)),
           currency: "USD",
           region: "us-east-1",
         });
