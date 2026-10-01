@@ -7,6 +7,7 @@ import testRlsRouter from  "./test/testRls.js"
 
 import { env } from "./config/env.js";
 import authRouter from './routes/auth.router.js'
+import githubRouter from "./routes/github.router.js";
 
 const app = express();
 
@@ -29,5 +30,7 @@ app.use("/api/auth", authRouter);
 
 app.use("/api/test", testRlsRouter);
 app.use("/api/costs", costRouter);
+
+app.use( "/api/github",githubRouter);
 
 export default app;

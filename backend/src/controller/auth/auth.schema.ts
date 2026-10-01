@@ -4,7 +4,7 @@ import *  as z from "zod";
     sub:z.string().uuid(),
     email:z.string().email(),
      organizationId: z.string(),
-  role: z.enum(["ADMIN", "MEMBER","OWNER"]),
+  role: z.enum(["MANAGER", "MEMBER","OWNER"]),
 })
 
 export const RefreshTokenSchema = z.object({

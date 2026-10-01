@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "IntegrationProvider" AS ENUM ('AWS');
+CREATE TYPE "IntegrationProvider" AS ENUM ('AWS', 'GITHUB');
 
 -- CreateEnum
 CREATE TYPE "IntegrationStatus" AS ENUM ('PENDING', 'ACTIVE', 'ERROR', 'DISCONNECTED');
@@ -16,6 +16,35 @@ CREATE TABLE "Integration" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Integration_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GitHubUser" (
+    "id" TEXT NOT NULL,
+    "integrationId" TEXT NOT NULL,
+    "githubUserId" TEXT NOT NULL,
+    "login" TEXT NOT NULL,
+    "name" TEXT,
+    "avatarUrl" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GitHubUser_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GitHubRepository" (
+    "id" TEXT NOT NULL,
+    "integrationId" TEXT NOT NULL,
+    "githubRepositoryId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "fullName" TEXT NOT NULL,
+    "ownerLogin" TEXT NOT NULL,
+    "private" BOOLEAN NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GitHubRepository_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -64,7 +93,16 @@ CREATE INDEX "Integration_organizationId_idx" ON "Integration"("organizationId")
 CREATE INDEX "Integration_organizationId_provider_idx" ON "Integration"("organizationId", "provider");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Integration_id_organizationId_key" ON "Integration"("id", "organizationId");
+CREATE UNIQUE INDEX "GitHubUser_integrationId_key" ON "GitHubUser"("integrationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "GitHubUser_integrationId_githubUserId_key" ON "GitHubUser"("integrationId", "githubUserId");
+
+-- CreateIndex
+CREATE INDEX "GitHubRepository_integrationId_idx" ON "GitHubRepository"("integrationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "GitHubRepository_integrationId_githubRepositoryId_key" ON "GitHubRepository"("integrationId", "githubRepositoryId");
 
 -- CreateIndex
 CREATE INDEX "CostRecord_organizationId_date_idx" ON "CostRecord"("organizationId", "date");
@@ -95,6 +133,12 @@ CREATE UNIQUE INDEX "ResourceUtilization_integrationId_resourceId_periodStart_pe
 
 -- AddForeignKey
 ALTER TABLE "Integration" ADD CONSTRAINT "Integration_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GitHubUser" ADD CONSTRAINT "GitHubUser_integrationId_fkey" FOREIGN KEY ("integrationId") REFERENCES "Integration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GitHubRepository" ADD CONSTRAINT "GitHubRepository_integrationId_fkey" FOREIGN KEY ("integrationId") REFERENCES "Integration"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CostRecord" ADD CONSTRAINT "CostRecord_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "Organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;

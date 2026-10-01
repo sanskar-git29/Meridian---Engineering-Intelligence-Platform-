@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-
+import fs from "node:fs";
 import { ApiError } from "../apiError.js";
 import {
   AccessTokenPayload,
@@ -64,4 +64,28 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
 
 export function generateCsrfToken(): string {
   return crypto.randomBytes(32).toString("hex");
+}
+
+
+
+
+export function generateGitHubAppJwt(): string {
+  const privateKey = fs.readFileSync(
+    env.github.GITHUB_PRIVATE_KEY_PATH,
+    "utf8",
+  );
+
+  const now = Math.floor(Date.now() / 1000);
+
+  return jwt.sign(
+    {
+      iat: now - 60,
+      exp: now + 600,
+    },
+    privateKey,
+    {
+      algorithm: "RS256",
+      issuer: env.github.GITHUB_APP_ID,
+    },
+  );
 }

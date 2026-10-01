@@ -90,9 +90,41 @@ model Integration {
   organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   costRecords          CostRecord[]
   resourceUtilizations ResourceUtilization[]
+  githubUser           GitHubUser?
+  githubRepositories   GitHubRepository[]
 
   @@index([organizationId])
   @@index([organizationId, provider])
+}
+
+model GitHubUser {
+  id            String      @id @default(uuid())
+  integrationId String      @unique
+  githubUserId  String
+  login         String
+  name          String?
+  avatarUrl     String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, githubUserId])
+}
+
+model GitHubRepository {
+  id                 String      @id @default(uuid())
+  integrationId      String
+  githubRepositoryId String
+  name               String
+  fullName           String
+  ownerLogin         String
+  private             Boolean
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  integration        Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, githubRepositoryId])
+  @@index([integrationId])
 }
 
 model CostRecord {
@@ -151,6 +183,7 @@ enum Role {
 
 enum IntegrationProvider {
   AWS
+  GITHUB
 }
 
 enum IntegrationStatus {
