@@ -22,6 +22,8 @@ coverage/
 # Prisma generated client
 generated/
 
+cookies.txt
+
 
 # ==========================================
 # Environment / Secrets
