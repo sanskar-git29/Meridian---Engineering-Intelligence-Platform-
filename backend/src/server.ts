@@ -7,3 +7,8 @@ app.listen(env.port, () => {
 });
 
 
+
+
+app.get("/health", (req, res) => {
+  res.send("Hello, World!");
+}); 
