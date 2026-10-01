@@ -10,7 +10,5 @@ app.listen(env.port, () => {
 
 
 app.get("/health", (_req, res) => {
-  res.status(200).json({
-    status: "ok",
-  });
-}); 
+  res.json({ status: "ok" });
+});
