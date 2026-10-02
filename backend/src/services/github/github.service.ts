@@ -12,6 +12,14 @@ export class GitHubService {
       organizationId,
     );
   }
+
+  async createInstallationAccessToken(
+    installationId: number,
+  ): Promise<string> {
+    return this.githubProvider.createInstallationAccessToken(
+      installationId,
+    );
+  }
 }
 
 export const githubService =

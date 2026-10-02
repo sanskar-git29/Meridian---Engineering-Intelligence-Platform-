@@ -39,8 +39,9 @@ export const githubCallback = asyncHandler(
     req: Request,
     res: Response,
   ) => {
-    const installationId =
-      Number(req.query.installation_id);
+    const installationId = Number(
+      req.query.installation_id,
+    );
 
     if (!installationId) {
       throw ApiError.badRequest(
@@ -48,18 +49,20 @@ export const githubCallback = asyncHandler(
       );
     }
 
-    console.log(
-      `GitHub installation received: ${installationId}`,
-    );
+    const installationToken =
+      await githubService.createInstallationAccessToken(
+        installationId,
+      );
 
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          "GitHub installation received",
+          "GitHub installation connected",
           {
             installationId,
+            installationToken,
           },
         ),
       );
